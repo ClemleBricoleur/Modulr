@@ -98,7 +98,7 @@ function App() {
             {getGreeting()},
           </h1>
           <h2 className="text-4xl font-bold mt-1 bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">
-            Creatorrrr
+            Creator
           </h2>
           <p className="text-slate-500 mt-2 text-sm">
             {serverStatus ? 'Connected to Freebox' : 'Running in local mode'}
