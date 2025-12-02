@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
-import { 
-  ChefHat, 
-  Martini, 
-  Settings, 
-  Plus, 
+import {
+  ChefHat,
+  Martini,
+  Settings,
+  Plus,
   Wifi,
   WifiOff,
   Smartphone
@@ -32,7 +32,7 @@ function App() {
     const checkServer = async () => {
       if (API_CONFIG.USE_SERVER) {
         try {
-          const res = await fetch(`${API_CONFIG.BASE_URL}/health`, { 
+          const res = await fetch(`${API_CONFIG.BASE_URL}/health`, {
             method: 'GET',
             signal: AbortSignal.timeout(3000)
           });
@@ -44,7 +44,7 @@ function App() {
         setServerStatus(false);
       }
     };
-    
+
     checkServer();
     const interval = setInterval(checkServer, 30000);
     return () => clearInterval(interval);
@@ -62,7 +62,7 @@ function App() {
   if (activeModule === 'recipe') {
     return <RecipeModule goHome={() => setActiveModule(null)} />;
   }
-  
+
   if (activeModule === 'cocktail') {
     return <CocktailModule goHome={() => setActiveModule(null)} />;
   }
@@ -98,7 +98,7 @@ function App() {
             {getGreeting()},
           </h1>
           <h2 className="text-4xl font-bold mt-1 bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">
-            Creator
+            Creatorrrr
           </h2>
           <p className="text-slate-500 mt-2 text-sm">
             {serverStatus ? 'Connected to Freebox' : 'Running in local mode'}
@@ -138,7 +138,7 @@ function App() {
           </button>
 
           {/* Placeholder - Add Module */}
-          <button 
+          <button
             className="aspect-square bg-slate-800/50 rounded-3xl p-5 flex flex-col justify-center items-center border-2 border-dashed border-slate-700 text-slate-600 hover:border-slate-500 hover:text-slate-500 transition-colors active:scale-95 animate-fade-in-up"
             style={{ animationDelay: '300ms' }}
           >
@@ -147,7 +147,7 @@ function App() {
           </button>
 
           {/* Settings */}
-          <button 
+          <button
             className="aspect-square bg-slate-800/50 rounded-3xl p-5 flex flex-col justify-center items-center text-slate-500 hover:bg-slate-700/50 hover:text-slate-400 transition-all active:scale-95 animate-fade-in-up"
             style={{ animationDelay: '400ms' }}
           >
