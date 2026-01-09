@@ -3,17 +3,18 @@ import {
   ChefHat,
   Martini,
   Settings,
-  Plus,
   Wifi,
   WifiOff,
-  Smartphone
+  Smartphone,
+  Wallet
 } from 'lucide-react';
 import { RecipeModule } from './modules/recipe/RecipeModule';
 import { CocktailModule } from './modules/cocktail/CocktailModule';
+import { FinanceModule } from './modules/finance/FinanceModule';
 import { SettingsModal } from './core/components/SettingsModal';
 import { API_CONFIG } from './core/config/api.config';
 
-type ActiveModule = 'recipe' | 'cocktail' | null;
+type ActiveModule = 'recipe' | 'cocktail' | 'finance' | null;
 
 function App() {
   const [activeModule, setActiveModule] = useState<ActiveModule>(null);
@@ -67,6 +68,10 @@ function App() {
 
   if (activeModule === 'cocktail') {
     return <CocktailModule goHome={() => setActiveModule(null)} />;
+  }
+
+  if (activeModule === 'finance') {
+    return <FinanceModule goHome={() => setActiveModule(null)} />;
   }
 
   // Home screen
@@ -139,13 +144,19 @@ function App() {
             </div>
           </button>
 
-          {/* Placeholder - Add Module */}
+          {/* Finance Module Launcher */}
           <button
-            className="aspect-square bg-slate-200/50 dark:bg-slate-800/50 rounded-3xl p-5 flex flex-col justify-center items-center border-2 border-dashed border-slate-300 dark:border-slate-700 text-slate-400 dark:text-slate-600 hover:border-slate-400 dark:hover:border-slate-500 hover:text-slate-500 dark:hover:text-slate-500 transition-colors active:scale-95 animate-fade-in-up"
+            onClick={() => setActiveModule('finance')}
+            className="aspect-square bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-3xl p-5 flex flex-col justify-between hover:from-emerald-400 hover:to-emerald-500 transition-all shadow-lg shadow-emerald-900/40 dark:shadow-emerald-900/40 text-left group active:scale-95 animate-fade-in-up text-white"
             style={{ animationDelay: '300ms' }}
           >
-            <Plus size={32} strokeWidth={1.5} />
-            <span className="text-xs mt-2">Add Module</span>
+            <div className="bg-white/20 w-12 h-12 rounded-2xl flex items-center justify-center group-hover:scale-110 group-hover:bg-white/30 transition-all">
+              <Wallet size={26} className="text-white" />
+            </div>
+            <div>
+              <span className="block text-2xl font-bold">Finance</span>
+              <span className="text-emerald-200 text-sm">Money Manager</span>
+            </div>
           </button>
 
           {/* Settings */}
@@ -162,7 +173,7 @@ function App() {
         {/* Quick Stats */}
         <div className="mt-8 p-4 bg-white/50 dark:bg-slate-800/30 rounded-2xl border border-slate-200/50 dark:border-slate-700/50 animate-fade-in" style={{ animationDelay: '500ms' }}>
           <h3 className="text-xs uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-3">Quick Stats</h3>
-          <div className="grid grid-cols-2 gap-4 text-center">
+          <div className="grid grid-cols-3 gap-4 text-center">
             <div>
               <p className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">
                 {JSON.parse(localStorage.getItem('modulr_recipes') || '[]').length}
@@ -174,6 +185,19 @@ function App() {
                 {JSON.parse(localStorage.getItem('modulr_cocktails') || '[]').length}
               </p>
               <p className="text-xs text-slate-400 dark:text-slate-500">Cocktails</p>
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
+                {(() => {
+                  const data = JSON.parse(localStorage.getItem('modulr_finance') || '[]');
+                  let total = 0;
+                  data.forEach((m: { totalInput: number; totalOutput: number }) => {
+                    total += (m.totalInput || 0) - (m.totalOutput || 0);
+                  });
+                  return total >= 0 ? `€${total.toFixed(0)}` : `-€${Math.abs(total).toFixed(0)}`;
+                })()}
+              </p>
+              <p className="text-xs text-slate-400 dark:text-slate-500">Balance</p>
             </div>
           </div>
         </div>
