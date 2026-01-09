@@ -3,6 +3,15 @@
 /* Tailwind CSS v4 dark mode variant */
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* Scrollbar color variables */
+:root {
+  --scrollbar-thumb: #cbd5e1;
+}
+
+:root.dark {
+  --scrollbar-thumb: #475569;
+}
+
 /* Custom scrollbar for mobile feel */
 ::-webkit-scrollbar {
   width: 4px;
@@ -13,13 +22,8 @@
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: var(--scrollbar-thumb);
   border-radius: 2px;
-}
-
-/* Dark mode scrollbar */
-.dark ::-webkit-scrollbar-thumb {
-  background: #475569;
 }
 
 /* Prevent text selection on buttons for mobile feel */
