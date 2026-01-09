@@ -88,17 +88,17 @@ export const RecipeModule = ({ goHome }: RecipeModuleProps) => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-20">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 pb-20">
       <Header title="My Recipes" onBack={goHome} className="bg-indigo-600" />
 
       <main className="p-4 max-w-md mx-auto space-y-6">
         {/* Search Bar */}
         <div className="relative">
-          <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
           <input
             type="text"
             placeholder="Search recipes..."
-            className="w-full pl-10 pr-4 py-3 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+            className="w-full pl-10 pr-4 py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
           />
@@ -106,7 +106,7 @@ export const RecipeModule = ({ goHome }: RecipeModuleProps) => {
 
         {/* Creation Form */}
         <Card className="animate-fade-in">
-          <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-4 flex items-center gap-2">
+          <h2 className="text-sm font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-4 flex items-center gap-2">
             <ChefHat size={16} />
             New Recipe
           </h2>
@@ -114,14 +114,14 @@ export const RecipeModule = ({ goHome }: RecipeModuleProps) => {
             <input
               type="text"
               placeholder="Recipe title (e.g., Pasta Carbonara)"
-              className="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full p-3 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-slate-800 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
               value={newTitle}
               onChange={e => setNewTitle(e.target.value)}
               required
             />
             
             <select
-              className="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full p-3 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
               value={newCategory}
               onChange={e => setNewCategory(e.target.value as RecipeCategory)}
             >
@@ -132,14 +132,14 @@ export const RecipeModule = ({ goHome }: RecipeModuleProps) => {
 
             <textarea
               placeholder="Ingredients (one per line)..."
-              className="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 h-24 resize-none"
+              className="w-full p-3 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-slate-800 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 h-24 resize-none"
               value={newIngredients}
               onChange={e => setNewIngredients(e.target.value)}
             />
 
             <textarea
               placeholder="Instructions (optional)..."
-              className="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 h-24 resize-none"
+              className="w-full p-3 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-slate-800 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 h-24 resize-none"
               value={newInstructions}
               onChange={e => setNewInstructions(e.target.value)}
             />
@@ -147,7 +147,7 @@ export const RecipeModule = ({ goHome }: RecipeModuleProps) => {
             <button
               type="submit"
               disabled={isSubmitting || !newTitle.trim()}
-              className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white py-3 rounded-lg font-medium active:scale-95 transition-all flex justify-center items-center gap-2"
+              className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 dark:disabled:bg-indigo-800 text-white py-3 rounded-lg font-medium active:scale-95 transition-all flex justify-center items-center gap-2"
             >
               {isSubmitting ? (
                 <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -163,15 +163,15 @@ export const RecipeModule = ({ goHome }: RecipeModuleProps) => {
 
         {/* Recipe List */}
         <div className="space-y-3">
-          <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wider flex justify-between items-center">
+          <h2 className="text-sm font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider flex justify-between items-center">
             <span>Your Collection ({recipes.length})</span>
             {loading && (
-              <span className="text-xs text-indigo-500 animate-pulse">Syncing...</span>
+              <span className="text-xs text-indigo-500 dark:text-indigo-400 animate-pulse">Syncing...</span>
             )}
           </h2>
 
           {recipes.length === 0 && !loading && (
-            <div className="text-center py-12 text-slate-400">
+            <div className="text-center py-12 text-slate-400 dark:text-slate-500">
               <ChefHat size={48} className="mx-auto mb-4 opacity-30" />
               <p>No recipes yet.</p>
               <p className="text-sm">Add your first recipe above!</p>
@@ -186,21 +186,21 @@ export const RecipeModule = ({ goHome }: RecipeModuleProps) => {
             >
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1">
-                  <h3 className="font-bold text-slate-800 truncate">{recipe.title}</h3>
-                  <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full shrink-0">
+                  <h3 className="font-bold text-slate-800 dark:text-white truncate">{recipe.title}</h3>
+                  <span className="text-xs bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 px-2 py-0.5 rounded-full shrink-0">
                     {recipe.category}
                   </span>
                 </div>
                 {recipe.ingredients && (
-                  <p className="text-sm text-slate-500 line-clamp-2">{recipe.ingredients}</p>
+                  <p className="text-sm text-slate-500 dark:text-slate-400 line-clamp-2">{recipe.ingredients}</p>
                 )}
                 {recipe.instructions && (
-                  <p className="text-xs text-slate-400 mt-2 line-clamp-2">{recipe.instructions}</p>
+                  <p className="text-xs text-slate-400 dark:text-slate-500 mt-2 line-clamp-2">{recipe.instructions}</p>
                 )}
               </div>
               <button
                 onClick={() => handleDelete(recipe.id)}
-                className="text-slate-300 hover:text-red-500 p-2 transition-colors shrink-0"
+                className="text-slate-300 dark:text-slate-600 hover:text-red-500 dark:hover:text-red-400 p-2 transition-colors shrink-0"
                 aria-label="Delete recipe"
               >
                 <Trash2 size={18} />
@@ -212,4 +212,3 @@ export const RecipeModule = ({ goHome }: RecipeModuleProps) => {
     </div>
   );
 };
-
