@@ -5,10 +5,10 @@ import { TransactionCard } from '../components/TransactionCard';
 import type { Transaction, ViewMode } from '../types/finance.types';
 
 interface ConsultationPageProps {
-  onBack: () => void;
+  onBack?: () => void;  // Optional - navigation handled by parent
 }
 
-export const ConsultationPage = ({ onBack }: ConsultationPageProps) => {
+export const ConsultationPage = (_props: ConsultationPageProps) => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<ViewMode>('month');
@@ -16,7 +16,7 @@ export const ConsultationPage = ({ onBack }: ConsultationPageProps) => {
   const [selectedMonth, setSelectedMonth] = useState(
     `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`
   );
-  const [availableYears, setAvailableYears] = useState<number[]>([]);
+  const [, setAvailableYears] = useState<number[]>([]);
   const [filterCategory, setFilterCategory] = useState<string>('all');
   const [filterOwner, setFilterOwner] = useState<string>('all');
   const [filterType, setFilterType] = useState<'all' | 'input' | 'output'>('all');
@@ -130,8 +130,8 @@ export const ConsultationPage = ({ onBack }: ConsultationPageProps) => {
             key={mode}
             onClick={() => setViewMode(mode)}
             className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all ${viewMode === mode
-                ? 'bg-white dark:bg-slate-700 text-emerald-600 dark:text-emerald-400 shadow-sm'
-                : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'
+              ? 'bg-white dark:bg-slate-700 text-emerald-600 dark:text-emerald-400 shadow-sm'
+              : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'
               }`}
           >
             {mode === 'month' ? 'Month' : mode === 'year' ? 'Year' : 'Category'}
@@ -247,8 +247,8 @@ export const ConsultationPage = ({ onBack }: ConsultationPageProps) => {
                 key={type}
                 onClick={() => setFilterType(type)}
                 className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${filterType === type
-                    ? 'bg-emerald-600 text-white'
-                    : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400'
+                  ? 'bg-emerald-600 text-white'
+                  : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400'
                   }`}
               >
                 {type === 'all' ? 'All' : type === 'output' ? 'Expenses' : 'Income'}
