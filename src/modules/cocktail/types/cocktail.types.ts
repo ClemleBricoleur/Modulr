@@ -1,5 +1,5 @@
 export interface Cocktail {
-  id: number;
+  id: string;           // UUID from Supabase
   name: string;
   ingredients: string;
   instructions: string;

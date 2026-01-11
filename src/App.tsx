@@ -6,19 +6,22 @@ import {
   Wifi,
   WifiOff,
   Smartphone,
-  Wallet
+  Wallet,
+  LogOut
 } from 'lucide-react';
 import { RecipeModule } from './modules/recipe/RecipeModule';
 import { CocktailModule } from './modules/cocktail/CocktailModule';
 import { FinanceModule } from './modules/finance/FinanceModule';
 import { SettingsModal } from './core/components/SettingsModal';
+import { AuthProvider, useAuth } from './core/context/AuthContext';
+import { AuthGuard } from './core/components/AuthGuard';
 import { API_CONFIG } from './core/config/api.config';
 
 type ActiveModule = 'recipe' | 'cocktail' | 'finance' | null;
 
-function App() {
+function AppContent() {
+  const { user, signOut } = useAuth();
   const [activeModule, setActiveModule] = useState<ActiveModule>(null);
-  const [serverStatus, setServerStatus] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
@@ -30,35 +33,26 @@ function App() {
     return () => clearInterval(timer);
   }, []);
 
-  // Check server status (simulated for now)
-  useEffect(() => {
-    const checkServer = async () => {
-      if (API_CONFIG.USE_SERVER) {
-        try {
-          const res = await fetch(`${API_CONFIG.BASE_URL}/health`, {
-            method: 'GET',
-            signal: AbortSignal.timeout(3000)
-          });
-          setServerStatus(res.ok);
-        } catch {
-          setServerStatus(false);
-        }
-      } else {
-        setServerStatus(false);
-      }
-    };
-
-    checkServer();
-    const interval = setInterval(checkServer, 30000);
-    return () => clearInterval(interval);
-  }, []);
-
   // Get greeting based on time of day
   const getGreeting = () => {
     const hour = currentTime.getHours();
     if (hour < 12) return 'Good Morning';
     if (hour < 18) return 'Good Afternoon';
     return 'Good Evening';
+  };
+
+  // Get user display name
+  const getUserName = () => {
+    if (user?.email) {
+      const name = user.email.split('@')[0];
+      return name.charAt(0).toUpperCase() + name.slice(1);
+    }
+    return 'User';
+  };
+
+  // Handle sign out
+  const handleSignOut = async () => {
+    await signOut();
   };
 
   // Render active module
@@ -85,7 +79,7 @@ function App() {
         </div>
         <div className="flex items-center gap-3">
           <span>{currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-          {serverStatus ? (
+          {API_CONFIG.USE_SUPABASE ? (
             <span className="flex items-center gap-1 text-emerald-500 dark:text-emerald-400">
               <Wifi size={14} />
             </span>
@@ -94,6 +88,13 @@ function App() {
               <WifiOff size={14} />
             </span>
           )}
+          <button
+            onClick={handleSignOut}
+            className="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded transition-colors"
+            title="Sign out"
+          >
+            <LogOut size={14} />
+          </button>
         </div>
       </div>
 
@@ -105,10 +106,10 @@ function App() {
             {getGreeting()},
           </h1>
           <h2 className="text-4xl font-bold mt-1 bg-gradient-to-r from-slate-800 to-slate-500 dark:from-white dark:to-slate-400 bg-clip-text text-transparent">
-            Creator
+            {getUserName()}
           </h2>
           <p className="text-slate-400 dark:text-slate-500 mt-2 text-sm">
-            {serverStatus ? 'Connected to Freebox' : 'Running in local mode'}
+            {API_CONFIG.USE_SUPABASE ? 'Connected to cloud' : 'Running in local mode'}
           </p>
         </div>
 
@@ -170,35 +171,19 @@ function App() {
           </button>
         </div>
 
-        {/* Quick Stats */}
+        {/* Info Card */}
         <div className="mt-8 p-4 bg-white/50 dark:bg-slate-800/30 rounded-2xl border border-slate-200/50 dark:border-slate-700/50 animate-fade-in" style={{ animationDelay: '500ms' }}>
-          <h3 className="text-xs uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-3">Quick Stats</h3>
-          <div className="grid grid-cols-3 gap-4 text-center">
-            <div>
-              <p className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">
-                {JSON.parse(localStorage.getItem('modulr_recipes') || '[]').length}
-              </p>
-              <p className="text-xs text-slate-400 dark:text-slate-500">Recipes</p>
+          <h3 className="text-xs uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-3">Status</h3>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className={`w-2 h-2 rounded-full ${API_CONFIG.USE_SUPABASE ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+              <span className="text-sm text-slate-600 dark:text-slate-300">
+                {API_CONFIG.USE_SUPABASE ? 'Cloud sync active' : 'Local storage mode'}
+              </span>
             </div>
-            <div>
-              <p className="text-2xl font-bold text-rose-500 dark:text-rose-400">
-                {JSON.parse(localStorage.getItem('modulr_cocktails') || '[]').length}
-              </p>
-              <p className="text-xs text-slate-400 dark:text-slate-500">Cocktails</p>
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
-                {(() => {
-                  const data = JSON.parse(localStorage.getItem('modulr_finance') || '[]');
-                  let total = 0;
-                  data.forEach((m: { totalInput: number; totalOutput: number }) => {
-                    total += (m.totalInput || 0) - (m.totalOutput || 0);
-                  });
-                  return total >= 0 ? `€${total.toFixed(0)}` : `-€${Math.abs(total).toFixed(0)}`;
-                })()}
-              </p>
-              <p className="text-xs text-slate-400 dark:text-slate-500">Balance</p>
-            </div>
+            <span className="text-xs text-slate-400 dark:text-slate-500">
+              {user?.email}
+            </span>
           </div>
         </div>
 
@@ -211,6 +196,16 @@ function App() {
       {/* Settings Modal */}
       <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
     </div>
+  );
+}
+
+function App() {
+  return (
+    <AuthProvider>
+      <AuthGuard>
+        <AppContent />
+      </AuthGuard>
+    </AuthProvider>
   );
 }
 
