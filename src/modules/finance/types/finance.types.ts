@@ -1,5 +1,5 @@
 export interface Transaction {
-  id: number;
+  id: string;            // UUID from Supabase
   owner: string;
   tag: string;           // category
   amount: number;
