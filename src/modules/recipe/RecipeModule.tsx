@@ -15,7 +15,7 @@ export const RecipeModule = ({ goHome }: RecipeModuleProps) => {
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  
+
   // Form state
   const [newTitle, setNewTitle] = useState('');
   const [newIngredients, setNewIngredients] = useState('');
@@ -31,7 +31,7 @@ export const RecipeModule = ({ goHome }: RecipeModuleProps) => {
   const loadRecipes = async () => {
     setLoading(true);
     try {
-      const data = searchQuery 
+      const data = searchQuery
         ? await RecipeService.search(searchQuery)
         : await RecipeService.getAll();
       setRecipes(data);
@@ -68,7 +68,7 @@ export const RecipeModule = ({ goHome }: RecipeModuleProps) => {
       setNewIngredients('');
       setNewInstructions('');
       setNewCategory('Dinner');
-      
+
       // Reload list
       await loadRecipes();
     } catch (error) {
@@ -78,7 +78,7 @@ export const RecipeModule = ({ goHome }: RecipeModuleProps) => {
     }
   };
 
-  const handleDelete = async (id: number) => {
+  const handleDelete = async (id: string) => {
     try {
       await RecipeService.delete(id);
       await loadRecipes();
@@ -119,7 +119,7 @@ export const RecipeModule = ({ goHome }: RecipeModuleProps) => {
               onChange={e => setNewTitle(e.target.value)}
               required
             />
-            
+
             <select
               className="w-full p-3 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
               value={newCategory}
@@ -179,8 +179,8 @@ export const RecipeModule = ({ goHome }: RecipeModuleProps) => {
           )}
 
           {recipes.map((recipe, index) => (
-            <Card 
-              key={recipe.id} 
+            <Card
+              key={recipe.id}
               className="flex justify-between items-start animate-fade-in-up"
               style={{ animationDelay: `${index * 50}ms` } as React.CSSProperties}
             >

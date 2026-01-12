@@ -1,8 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
-import { TrendingUp, TrendingDown, Wallet, Download, Upload } from 'lucide-react';
+import { TrendingUp, TrendingDown, Wallet, Download, Upload, Trash2 } from 'lucide-react';
 import { FinanceService } from '../services/financeService';
 import { TransactionCard } from '../components/TransactionCard';
 import type { Transaction, PeriodFilter } from '../types/finance.types';
+
+const isDev = import.meta.env.DEV;
 
 interface DashboardPageProps {
   onNavigate: (page: 'consultation' | 'add') => void;
@@ -14,6 +16,7 @@ export const DashboardPage = ({ onNavigate }: DashboardPageProps) => {
   const [recentTransactions, setRecentTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [importing, setImporting] = useState(false);
+  const [deletingAll, setDeletingAll] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const currentYear = new Date().getFullYear();
@@ -74,9 +77,33 @@ export const DashboardPage = ({ onNavigate }: DashboardPageProps) => {
     }
   };
 
-  const handleDeleteTransaction = async (id: number) => {
+  const handleDeleteTransaction = async (id: string) => {
     await FinanceService.deleteTransaction(id);
     loadData();
+  };
+
+  const handleDeleteAll = async () => {
+    const confirmed = window.confirm(
+      '⚠️ DEV MODE: Are you sure you want to delete ALL transactions?\n\nThis action cannot be undone!'
+    );
+    
+    if (!confirmed) return;
+
+    setDeletingAll(true);
+    try {
+      const success = await FinanceService.deleteAllTransactions();
+      if (success) {
+        loadData();
+        alert('All transactions deleted successfully.');
+      } else {
+        alert('Failed to delete transactions.');
+      }
+    } catch (error) {
+      console.error('Delete all error:', error);
+      alert('An error occurred while deleting transactions.');
+    } finally {
+      setDeletingAll(false);
+    }
   };
 
   const formatCurrency = (amount: number) => {
@@ -191,6 +218,22 @@ export const DashboardPage = ({ onNavigate }: DashboardPageProps) => {
         onChange={handleFileSelect}
         className="hidden"
       />
+
+      {/* Dev-only: Delete All Button */}
+      {isDev && (
+        <button
+          onClick={handleDeleteAll}
+          disabled={deletingAll}
+          className="w-full bg-red-100 dark:bg-red-900/30 hover:bg-red-200 dark:hover:bg-red-900/50 text-red-600 dark:text-red-400 py-3 px-4 rounded-xl font-medium transition-colors text-sm flex items-center justify-center gap-2 border-2 border-dashed border-red-300 dark:border-red-800 disabled:opacity-50"
+        >
+          {deletingAll ? (
+            <div className="w-4 h-4 border-2 border-red-400 border-t-transparent rounded-full animate-spin" />
+          ) : (
+            <Trash2 size={16} />
+          )}
+          🛠️ DEV: Delete All Transactions
+        </button>
+      )}
 
       {/* Recent Transactions */}
       <div className="space-y-3">
