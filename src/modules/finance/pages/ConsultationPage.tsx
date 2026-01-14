@@ -72,7 +72,7 @@ export const ConsultationPage = (_props: ConsultationPageProps) => {
     }
   };
 
-  const handleDelete = async (id: number) => {
+  const handleDelete = async (id: string) => {
     await FinanceService.deleteTransaction(id);
     loadTransactions();
   };
@@ -141,23 +141,34 @@ export const ConsultationPage = (_props: ConsultationPageProps) => {
 
       {/* Period Navigator */}
       {viewMode === 'month' && (
-        <div className="flex items-center justify-between bg-white dark:bg-slate-800 rounded-xl p-3 border border-slate-100 dark:border-slate-700">
-          <button
-            onClick={() => navigateMonth('prev')}
-            className="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
-          >
-            <ChevronLeft size={20} className="text-slate-600 dark:text-slate-400" />
-          </button>
-          <div className="flex items-center gap-2 text-slate-800 dark:text-white font-medium">
-            <Calendar size={18} className="text-emerald-600 dark:text-emerald-400" />
-            {formatMonthDisplay(selectedMonth)}
+        <div className="bg-white dark:bg-slate-800 rounded-xl p-3 border border-slate-100 dark:border-slate-700 space-y-3">
+          {/* Arrow Navigation */}
+          <div className="flex items-center justify-between">
+            <button
+              onClick={() => navigateMonth('prev')}
+              className="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
+            >
+              <ChevronLeft size={20} className="text-slate-600 dark:text-slate-400" />
+            </button>
+            <div className="flex items-center gap-2 text-slate-800 dark:text-white font-medium">
+              <Calendar size={18} className="text-emerald-600 dark:text-emerald-400" />
+              {formatMonthDisplay(selectedMonth)}
+            </div>
+            <button
+              onClick={() => navigateMonth('next')}
+              className="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
+            >
+              <ChevronRight size={20} className="text-slate-600 dark:text-slate-400" />
+            </button>
           </div>
-          <button
-            onClick={() => navigateMonth('next')}
-            className="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
-          >
-            <ChevronRight size={20} className="text-slate-600 dark:text-slate-400" />
-          </button>
+
+          {/* Month Picker */}
+          <input
+            type="month"
+            value={selectedMonth}
+            onChange={(e) => setSelectedMonth(e.target.value)}
+            className="w-full p-2 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-slate-700 dark:text-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+          />
         </div>
       )}
 

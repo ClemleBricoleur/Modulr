@@ -41,6 +41,24 @@ function rowToTransaction(row: TransactionRow): Transaction {
 }
 
 /**
+ * Get the first day of the next month from a monthKey (YYYY-MM)
+ * Used for exclusive date range queries (date < nextMonthFirstDay)
+ */
+function getFirstDayOfNextMonth(monthKey: string): string {
+  const [year, month] = monthKey.split('-').map(Number);
+  // Calculate next month
+  let nextYear = year;
+  let nextMonth = month + 1;
+
+  if (nextMonth > 12) {
+    nextMonth = 1;
+    nextYear++;
+  }
+
+  return `${nextYear}-${String(nextMonth).padStart(2, '0')}-01`;
+}
+
+/**
  * Group transactions by month
  */
 function groupTransactionsByMonth(transactions: Transaction[]): MonthData[] {
@@ -48,7 +66,7 @@ function groupTransactionsByMonth(transactions: Transaction[]): MonthData[] {
 
   transactions.forEach(t => {
     const monthKey = t.date.substring(0, 7); // "YYYY-MM"
-    
+
     if (!monthMap.has(monthKey)) {
       monthMap.set(monthKey, {
         month: monthKey,
@@ -60,7 +78,7 @@ function groupTransactionsByMonth(transactions: Transaction[]): MonthData[] {
     }
 
     const monthData = monthMap.get(monthKey)!;
-    
+
     if (t.type === 'input') {
       monthData.input.push(t);
       monthData.totalInput += t.amount;
@@ -71,7 +89,7 @@ function groupTransactionsByMonth(transactions: Transaction[]): MonthData[] {
   });
 
   // Sort by month descending (newest first)
-  return Array.from(monthMap.values()).sort((a, b) => 
+  return Array.from(monthMap.values()).sort((a, b) =>
     b.month.localeCompare(a.month)
   );
 }
@@ -91,7 +109,7 @@ export const FinanceService = {
 
     if (API_CONFIG.USE_SUPABASE) {
       const userId = await ensureAuthenticated();
-      
+
       const { data, error } = await supabase
         .from('transactions')
         .select('*')
@@ -99,7 +117,7 @@ export const FinanceService = {
         .order('date', { ascending: false });
 
       if (error) handleSupabaseError(error, 'fetch transactions');
-      
+
       const transactions = (data || []).map(rowToTransaction);
       return groupTransactionsByMonth(transactions);
     }
@@ -115,18 +133,18 @@ export const FinanceService = {
     if (API_CONFIG.USE_SUPABASE) {
       const userId = await ensureAuthenticated();
       const startDate = `${monthKey}-01`;
-      const endDate = `${monthKey}-31`;
-      
+      const endDate = getFirstDayOfNextMonth(monthKey);
+
       const { data, error } = await supabase
         .from('transactions')
         .select('*')
         .eq('user_id', userId)
         .gte('date', startDate)
-        .lte('date', endDate)
+        .lt('date', endDate)
         .order('date', { ascending: false });
 
       if (error) handleSupabaseError(error, 'fetch month data');
-      
+
       const transactions = (data || []).map(rowToTransaction);
       const months = groupTransactionsByMonth(transactions);
       return months[0] || null;
@@ -142,7 +160,7 @@ export const FinanceService = {
   async getAllTransactions(): Promise<Transaction[]> {
     if (API_CONFIG.USE_SUPABASE) {
       const userId = await ensureAuthenticated();
-      
+
       const { data, error } = await supabase
         .from('transactions')
         .select('*')
@@ -150,7 +168,7 @@ export const FinanceService = {
         .order('date', { ascending: false });
 
       if (error) handleSupabaseError(error, 'fetch all transactions');
-      
+
       return (data || []).map(rowToTransaction);
     }
 
@@ -174,7 +192,7 @@ export const FinanceService = {
       const userId = await ensureAuthenticated();
       const startDate = `${year}-01-01`;
       const endDate = `${year}-12-31`;
-      
+
       const { data, error } = await supabase
         .from('transactions')
         .select('*')
@@ -184,7 +202,7 @@ export const FinanceService = {
         .order('date', { ascending: false });
 
       if (error) handleSupabaseError(error, 'fetch transactions by year');
-      
+
       return (data || []).map(rowToTransaction);
     }
 
@@ -199,18 +217,18 @@ export const FinanceService = {
     if (API_CONFIG.USE_SUPABASE) {
       const userId = await ensureAuthenticated();
       const startDate = `${monthKey}-01`;
-      const endDate = `${monthKey}-31`;
-      
+      const endDate = getFirstDayOfNextMonth(monthKey);
+
       const { data, error } = await supabase
         .from('transactions')
         .select('*')
         .eq('user_id', userId)
         .gte('date', startDate)
-        .lte('date', endDate)
+        .lt('date', endDate)
         .order('date', { ascending: false });
 
       if (error) handleSupabaseError(error, 'fetch transactions by month');
-      
+
       return (data || []).map(rowToTransaction);
     }
 
@@ -231,7 +249,7 @@ export const FinanceService = {
   }> {
     if (API_CONFIG.USE_SUPABASE) {
       const userId = await ensureAuthenticated();
-      
+
       let query = supabase
         .from('transactions')
         .select('amount, type')
@@ -301,7 +319,7 @@ export const FinanceService = {
         .single();
 
       if (error) handleSupabaseError(error, 'create transaction');
-      
+
       return rowToTransaction(data);
     }
 
@@ -362,7 +380,7 @@ export const FinanceService = {
         console.error('Delete transaction error:', error);
         return false;
       }
-      
+
       return true;
     }
 
@@ -684,5 +702,31 @@ export const FinanceService = {
 
     const all = await this.getAllTransactions();
     return all.slice(0, limit);
+  },
+
+  /**
+   * Delete all transactions (DEV ONLY)
+   * Use with caution - this permanently deletes all user transactions
+   */
+  async deleteAllTransactions(): Promise<boolean> {
+    if (API_CONFIG.USE_SUPABASE) {
+      const userId = await ensureAuthenticated();
+
+      const { error } = await supabase
+        .from('transactions')
+        .delete()
+        .eq('user_id', userId);
+
+      if (error) {
+        console.error('Delete all transactions error:', error);
+        return false;
+      }
+
+      return true;
+    }
+
+    // LocalStorage fallback
+    localStorage.removeItem('modulr_finance');
+    return true;
   },
 };
