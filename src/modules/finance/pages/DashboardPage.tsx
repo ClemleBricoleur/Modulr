@@ -11,7 +11,7 @@ interface DashboardPageProps {
 }
 
 export const DashboardPage = ({ onNavigate }: DashboardPageProps) => {
-  const [periodFilter, setPeriodFilter] = useState<PeriodFilter>('year');
+  const [periodFilter, setPeriodFilter] = useState<PeriodFilter>('all');
   const [totals, setTotals] = useState({ totalInput: 0, totalOutput: 0, balance: 0 });
   const [recentTransactions, setRecentTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
@@ -86,7 +86,7 @@ export const DashboardPage = ({ onNavigate }: DashboardPageProps) => {
     const confirmed = window.confirm(
       '⚠️ DEV MODE: Are you sure you want to delete ALL transactions?\n\nThis action cannot be undone!'
     );
-    
+
     if (!confirmed) return;
 
     setDeletingAll(true);
@@ -128,15 +128,6 @@ export const DashboardPage = ({ onNavigate }: DashboardPageProps) => {
         {/* Period Toggle */}
         <div className="flex gap-2 mt-4">
           <button
-            onClick={() => setPeriodFilter('year')}
-            className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${periodFilter === 'year'
-              ? 'bg-white text-emerald-600'
-              : 'bg-emerald-400/30 text-white hover:bg-emerald-400/50'
-              }`}
-          >
-            This Year
-          </button>
-          <button
             onClick={() => setPeriodFilter('all')}
             className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${periodFilter === 'all'
               ? 'bg-white text-emerald-600'
@@ -145,27 +136,37 @@ export const DashboardPage = ({ onNavigate }: DashboardPageProps) => {
           >
             All Time
           </button>
+          <button
+            onClick={() => setPeriodFilter('year')}
+            className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${periodFilter === 'year'
+              ? 'bg-white text-emerald-600'
+              : 'bg-emerald-400/30 text-white hover:bg-emerald-400/50'
+              }`}
+          >
+            This Year
+          </button>
+
         </div>
       </div>
 
       {/* Income/Expense Stats */}
       <div className="grid grid-cols-2 gap-4">
-        <div className="bg-white dark:bg-slate-800 rounded-2xl p-4 border border-slate-100 dark:border-slate-700">
+        <div className="bg-white dark:bg-slate-800 rounded-2xl p-4 border border-slate-100 dark:border-slate-700 overflow-hidden">
           <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 mb-2">
             <TrendingUp size={18} />
             <span className="text-sm font-medium">Income</span>
           </div>
-          <p className="text-2xl font-bold text-slate-800 dark:text-white">
+          <p className="text-xl font-bold text-slate-800 dark:text-white truncate">
             {loading ? '...' : formatCurrency(totals.totalInput)}
           </p>
         </div>
 
-        <div className="bg-white dark:bg-slate-800 rounded-2xl p-4 border border-slate-100 dark:border-slate-700">
+        <div className="bg-white dark:bg-slate-800 rounded-2xl p-4 border border-slate-100 dark:border-slate-700 overflow-hidden">
           <div className="flex items-center gap-2 text-red-600 dark:text-red-400 mb-2">
             <TrendingDown size={18} />
             <span className="text-sm font-medium">Expenses</span>
           </div>
-          <p className="text-2xl font-bold text-slate-800 dark:text-white">
+          <p className="text-xl font-bold text-slate-800 dark:text-white truncate">
             {loading ? '...' : formatCurrency(totals.totalOutput)}
           </p>
         </div>
