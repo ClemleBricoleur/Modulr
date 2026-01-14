@@ -15,7 +15,7 @@ export const CocktailModule = ({ goHome }: CocktailModuleProps) => {
   const [cocktails, setCocktails] = useState<Cocktail[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  
+
   // Form state
   const [newName, setNewName] = useState('');
   const [newIngredients, setNewIngredients] = useState('');
@@ -32,7 +32,7 @@ export const CocktailModule = ({ goHome }: CocktailModuleProps) => {
   const loadCocktails = async () => {
     setLoading(true);
     try {
-      const data = searchQuery 
+      const data = searchQuery
         ? await CocktailService.search(searchQuery)
         : await CocktailService.getAll();
       setCocktails(data);
@@ -71,7 +71,7 @@ export const CocktailModule = ({ goHome }: CocktailModuleProps) => {
       setNewInstructions('');
       setNewAlcoholic('Alcoholic');
       setNewGlassType('');
-      
+
       // Reload list
       await loadCocktails();
     } catch (error) {
@@ -81,7 +81,7 @@ export const CocktailModule = ({ goHome }: CocktailModuleProps) => {
     }
   };
 
-  const handleDelete = async (id: number) => {
+  const handleDelete = async (id: string) => {
     try {
       await CocktailService.delete(id);
       await loadCocktails();
@@ -203,8 +203,8 @@ export const CocktailModule = ({ goHome }: CocktailModuleProps) => {
           )}
 
           {cocktails.map((cocktail, index) => (
-            <Card 
-              key={cocktail.id} 
+            <Card
+              key={cocktail.id}
               className="flex justify-between items-start animate-fade-in-up"
               style={{ animationDelay: `${index * 50}ms` } as React.CSSProperties}
             >

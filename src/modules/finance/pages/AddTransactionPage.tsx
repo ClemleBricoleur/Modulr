@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Plus, TrendingUp, TrendingDown } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Plus, TrendingUp, TrendingDown, Check } from 'lucide-react';
 import { FinanceService } from '../services/financeService';
 import {
   EXPENSE_CATEGORIES,
@@ -22,6 +22,17 @@ export const AddTransactionPage = ({ onSuccess }: AddTransactionPageProps) => {
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showCustomOwner, setShowCustomOwner] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  // Auto-hide success message after 3 seconds
+  useEffect(() => {
+    if (successMessage) {
+      const timer = setTimeout(() => {
+        setSuccessMessage(null);
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [successMessage]);
 
   const categories = type === 'output' ? EXPENSE_CATEGORIES : INCOME_CATEGORIES;
 
@@ -41,13 +52,21 @@ export const AddTransactionPage = ({ onSuccess }: AddTransactionPageProps) => {
         type
       });
 
-      // Reset form
+      // Reset amount only, keep other fields for quick batch entry
       setAmount('');
-      setTag(type === 'output' ? EXPENSE_CATEGORIES[0] : INCOME_CATEGORIES[0]);
 
+      // Show success message
+      const formattedAmount = new Intl.NumberFormat('fr-FR', {
+        style: 'currency',
+        currency: 'CAD'
+      }).format(parsedAmount);
+      setSuccessMessage(`${type === 'input' ? 'Income' : 'Expense'} of ${formattedAmount} added!`);
+
+      // Notify parent to refresh data (but don't navigate away)
       onSuccess();
     } catch (error) {
       console.error('Failed to add transaction:', error);
+      setSuccessMessage(null);
     } finally {
       setIsSubmitting(false);
     }
@@ -60,6 +79,18 @@ export const AddTransactionPage = ({ onSuccess }: AddTransactionPageProps) => {
 
   return (
     <div className="p-4 max-w-md mx-auto">
+      {/* Success Message */}
+      {successMessage && (
+        <div className="mb-4 p-4 bg-emerald-100 dark:bg-emerald-900/30 border border-emerald-300 dark:border-emerald-700 rounded-2xl flex items-center gap-3 animate-fade-in">
+          <div className="bg-emerald-500 rounded-full p-1">
+            <Check size={16} className="text-white" />
+          </div>
+          <span className="text-emerald-700 dark:text-emerald-300 font-medium">
+            {successMessage}
+          </span>
+        </div>
+      )}
+
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Type Toggle */}
         <div className="bg-white dark:bg-slate-800 rounded-2xl p-2 border border-slate-100 dark:border-slate-700">

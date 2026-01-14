@@ -1,4 +1,6 @@
 import { API_CONFIG, simulateDelay } from '../../../core/config/api.config';
+import { supabase } from '../../../core/config/supabase.config';
+import { ensureAuthenticated, handleSupabaseError } from '../../../core/lib/supabaseService';
 import type {
   Transaction,
   MonthData,
@@ -10,10 +12,93 @@ import type {
 const STORAGE_KEY = 'modulr_finance';
 
 /**
+ * Database row type from Supabase
+ */
+interface TransactionRow {
+  id: string;
+  user_id: string;
+  owner: string;
+  tag: string;
+  amount: number;
+  date: string;
+  type: 'input' | 'output';
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * Convert database row to Transaction
+ */
+function rowToTransaction(row: TransactionRow): Transaction {
+  return {
+    id: row.id,
+    owner: row.owner,
+    tag: row.tag,
+    amount: Number(row.amount),
+    date: row.date,
+    type: row.type,
+  };
+}
+
+/**
+ * Get the first day of the next month from a monthKey (YYYY-MM)
+ * Used for exclusive date range queries (date < nextMonthFirstDay)
+ */
+function getFirstDayOfNextMonth(monthKey: string): string {
+  const [year, month] = monthKey.split('-').map(Number);
+  // Calculate next month
+  let nextYear = year;
+  let nextMonth = month + 1;
+
+  if (nextMonth > 12) {
+    nextMonth = 1;
+    nextYear++;
+  }
+
+  return `${nextYear}-${String(nextMonth).padStart(2, '0')}-01`;
+}
+
+/**
+ * Group transactions by month
+ */
+function groupTransactionsByMonth(transactions: Transaction[]): MonthData[] {
+  const monthMap = new Map<string, MonthData>();
+
+  transactions.forEach(t => {
+    const monthKey = t.date.substring(0, 7); // "YYYY-MM"
+
+    if (!monthMap.has(monthKey)) {
+      monthMap.set(monthKey, {
+        month: monthKey,
+        input: [],
+        output: [],
+        totalInput: 0,
+        totalOutput: 0,
+      });
+    }
+
+    const monthData = monthMap.get(monthKey)!;
+
+    if (t.type === 'input') {
+      monthData.input.push(t);
+      monthData.totalInput += t.amount;
+    } else {
+      monthData.output.push(t);
+      monthData.totalOutput += t.amount;
+    }
+  });
+
+  // Sort by month descending (newest first)
+  return Array.from(monthMap.values()).sort((a, b) =>
+    b.month.localeCompare(a.month)
+  );
+}
+
+/**
  * Finance Service
  * 
  * Handles all financial transaction CRUD operations.
- * Data is organized by month for efficient querying.
+ * Uses Supabase for persistence when enabled, falls back to localStorage.
  */
 export const FinanceService = {
   /**
@@ -22,10 +107,19 @@ export const FinanceService = {
   async getAllMonths(): Promise<MonthData[]> {
     await simulateDelay();
 
-    if (API_CONFIG.USE_SERVER) {
-      const res = await fetch(`${API_CONFIG.BASE_URL}/finance/months`);
-      if (!res.ok) throw new Error('Failed to fetch finance data');
-      return res.json();
+    if (API_CONFIG.USE_SUPABASE) {
+      const userId = await ensureAuthenticated();
+
+      const { data, error } = await supabase
+        .from('transactions')
+        .select('*')
+        .eq('user_id', userId)
+        .order('date', { ascending: false });
+
+      if (error) handleSupabaseError(error, 'fetch transactions');
+
+      const transactions = (data || []).map(rowToTransaction);
+      return groupTransactionsByMonth(transactions);
     }
 
     const data = localStorage.getItem(STORAGE_KEY);
@@ -36,6 +130,26 @@ export const FinanceService = {
    * Get data for a specific month
    */
   async getMonth(monthKey: string): Promise<MonthData | null> {
+    if (API_CONFIG.USE_SUPABASE) {
+      const userId = await ensureAuthenticated();
+      const startDate = `${monthKey}-01`;
+      const endDate = getFirstDayOfNextMonth(monthKey);
+
+      const { data, error } = await supabase
+        .from('transactions')
+        .select('*')
+        .eq('user_id', userId)
+        .gte('date', startDate)
+        .lt('date', endDate)
+        .order('date', { ascending: false });
+
+      if (error) handleSupabaseError(error, 'fetch month data');
+
+      const transactions = (data || []).map(rowToTransaction);
+      const months = groupTransactionsByMonth(transactions);
+      return months[0] || null;
+    }
+
     const months = await this.getAllMonths();
     return months.find(m => m.month === monthKey) || null;
   },
@@ -44,6 +158,20 @@ export const FinanceService = {
    * Get all transactions (flattened)
    */
   async getAllTransactions(): Promise<Transaction[]> {
+    if (API_CONFIG.USE_SUPABASE) {
+      const userId = await ensureAuthenticated();
+
+      const { data, error } = await supabase
+        .from('transactions')
+        .select('*')
+        .eq('user_id', userId)
+        .order('date', { ascending: false });
+
+      if (error) handleSupabaseError(error, 'fetch all transactions');
+
+      return (data || []).map(rowToTransaction);
+    }
+
     const months = await this.getAllMonths();
     const transactions: Transaction[] = [];
 
@@ -60,6 +188,24 @@ export const FinanceService = {
    * Get transactions filtered by year
    */
   async getTransactionsByYear(year: number): Promise<Transaction[]> {
+    if (API_CONFIG.USE_SUPABASE) {
+      const userId = await ensureAuthenticated();
+      const startDate = `${year}-01-01`;
+      const endDate = `${year}-12-31`;
+
+      const { data, error } = await supabase
+        .from('transactions')
+        .select('*')
+        .eq('user_id', userId)
+        .gte('date', startDate)
+        .lte('date', endDate)
+        .order('date', { ascending: false });
+
+      if (error) handleSupabaseError(error, 'fetch transactions by year');
+
+      return (data || []).map(rowToTransaction);
+    }
+
     const all = await this.getAllTransactions();
     return all.filter(t => t.date.startsWith(year.toString()));
   },
@@ -68,6 +214,24 @@ export const FinanceService = {
    * Get transactions filtered by month
    */
   async getTransactionsByMonth(monthKey: string): Promise<Transaction[]> {
+    if (API_CONFIG.USE_SUPABASE) {
+      const userId = await ensureAuthenticated();
+      const startDate = `${monthKey}-01`;
+      const endDate = getFirstDayOfNextMonth(monthKey);
+
+      const { data, error } = await supabase
+        .from('transactions')
+        .select('*')
+        .eq('user_id', userId)
+        .gte('date', startDate)
+        .lt('date', endDate)
+        .order('date', { ascending: false });
+
+      if (error) handleSupabaseError(error, 'fetch transactions by month');
+
+      return (data || []).map(rowToTransaction);
+    }
+
     const month = await this.getMonth(monthKey);
     if (!month) return [];
     return [...month.input, ...month.output].sort((a, b) =>
@@ -83,6 +247,38 @@ export const FinanceService = {
     totalOutput: number;
     balance: number;
   }> {
+    if (API_CONFIG.USE_SUPABASE) {
+      const userId = await ensureAuthenticated();
+
+      let query = supabase
+        .from('transactions')
+        .select('amount, type')
+        .eq('user_id', userId);
+
+      if (filter === 'year' && year) {
+        const startDate = `${year}-01-01`;
+        const endDate = `${year}-12-31`;
+        query = query.gte('date', startDate).lte('date', endDate);
+      }
+
+      const { data, error } = await query;
+
+      if (error) handleSupabaseError(error, 'calculate totals');
+
+      let totalInput = 0;
+      let totalOutput = 0;
+
+      (data || []).forEach((row: { amount: number; type: string }) => {
+        if (row.type === 'input') {
+          totalInput += Number(row.amount);
+        } else {
+          totalOutput += Number(row.amount);
+        }
+      });
+
+      return { totalInput, totalOutput, balance: totalInput - totalOutput };
+    }
+
     const months = await this.getAllMonths();
     let filteredMonths = months;
 
@@ -106,14 +302,25 @@ export const FinanceService = {
   async addTransaction(input: CreateTransactionInput): Promise<Transaction> {
     await simulateDelay();
 
-    if (API_CONFIG.USE_SERVER) {
-      const res = await fetch(`${API_CONFIG.BASE_URL}/finance/transactions`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(input),
-      });
-      if (!res.ok) throw new Error('Failed to create transaction');
-      return res.json();
+    if (API_CONFIG.USE_SUPABASE) {
+      const userId = await ensureAuthenticated();
+
+      const { data, error } = await supabase
+        .from('transactions')
+        .insert({
+          user_id: userId,
+          owner: input.owner,
+          tag: input.tag,
+          amount: input.amount,
+          date: input.date,
+          type: input.type,
+        })
+        .select()
+        .single();
+
+      if (error) handleSupabaseError(error, 'create transaction');
+
+      return rowToTransaction(data);
     }
 
     const months = await this.getAllMonths();
@@ -121,7 +328,7 @@ export const FinanceService = {
 
     const newTransaction: Transaction = {
       ...input,
-      id: Date.now(),
+      id: Date.now().toString(),
     };
 
     // Find or create month
@@ -157,14 +364,24 @@ export const FinanceService = {
   /**
    * Delete a transaction
    */
-  async deleteTransaction(id: number): Promise<boolean> {
+  async deleteTransaction(id: string): Promise<boolean> {
     await simulateDelay();
 
-    if (API_CONFIG.USE_SERVER) {
-      const res = await fetch(`${API_CONFIG.BASE_URL}/finance/transactions/${id}`, {
-        method: 'DELETE',
-      });
-      return res.ok;
+    if (API_CONFIG.USE_SUPABASE) {
+      const userId = await ensureAuthenticated();
+
+      const { error } = await supabase
+        .from('transactions')
+        .delete()
+        .eq('id', id)
+        .eq('user_id', userId);
+
+      if (error) {
+        console.error('Delete transaction error:', error);
+        return false;
+      }
+
+      return true;
     }
 
     const months = await this.getAllMonths();
@@ -205,6 +422,24 @@ export const FinanceService = {
    * Get available years from data
    */
   async getAvailableYears(): Promise<number[]> {
+    if (API_CONFIG.USE_SUPABASE) {
+      const userId = await ensureAuthenticated();
+
+      const { data, error } = await supabase
+        .from('transactions')
+        .select('date')
+        .eq('user_id', userId);
+
+      if (error) handleSupabaseError(error, 'fetch available years');
+
+      const years = new Set<number>();
+      (data || []).forEach((row: { date: string }) => {
+        years.add(parseInt(row.date.substring(0, 4)));
+      });
+
+      return Array.from(years).sort((a, b) => b - a);
+    }
+
     const months = await this.getAllMonths();
     const years = new Set<number>();
 
@@ -219,6 +454,28 @@ export const FinanceService = {
    * Get available months for a year
    */
   async getAvailableMonths(year: number): Promise<string[]> {
+    if (API_CONFIG.USE_SUPABASE) {
+      const userId = await ensureAuthenticated();
+      const startDate = `${year}-01-01`;
+      const endDate = `${year}-12-31`;
+
+      const { data, error } = await supabase
+        .from('transactions')
+        .select('date')
+        .eq('user_id', userId)
+        .gte('date', startDate)
+        .lte('date', endDate);
+
+      if (error) handleSupabaseError(error, 'fetch available months');
+
+      const months = new Set<string>();
+      (data || []).forEach((row: { date: string }) => {
+        months.add(row.date.substring(0, 7));
+      });
+
+      return Array.from(months).sort((a, b) => b.localeCompare(a));
+    }
+
     const months = await this.getAllMonths();
     return months
       .filter(m => m.month.startsWith(year.toString()))
@@ -316,12 +573,9 @@ export const FinanceService = {
         throw new Error('Invalid data format: expected { months: [...] }, { data: [...] }, or array');
       }
 
-      // Validate and normalize each month
-      const normalizedMonths: MonthData[] = [];
-
       // Type for legacy data with 'ammount' typo
       interface LegacyTransaction {
-        id: number;
+        id: number | string;
         owner: string;
         tag: string;
         amount?: number;
@@ -330,21 +584,64 @@ export const FinanceService = {
         type: 'input' | 'output';
       }
 
+      // Normalize transactions (handle 'ammount' typo)
+      const normalizeTransaction = (t: LegacyTransaction): Transaction => ({
+        id: String(t.id),
+        owner: t.owner,
+        tag: t.tag,
+        // Handle both 'amount' and 'ammount' (legacy typo)
+        amount: t.amount ?? t.ammount ?? 0,
+        date: t.date,
+        type: t.type
+      });
+
+      if (API_CONFIG.USE_SUPABASE) {
+        const userId = await ensureAuthenticated();
+
+        // Flatten all transactions from months
+        const allTransactions: CreateTransactionInput[] = [];
+
+        for (const month of months) {
+          if (!month.month || !Array.isArray(month.input) || !Array.isArray(month.output)) {
+            throw new Error(`Invalid month data format for: ${month.month || 'unknown'}`);
+          }
+
+          [...month.input, ...month.output].forEach((t) => {
+            const normalized = normalizeTransaction(t as LegacyTransaction);
+            allTransactions.push({
+              owner: normalized.owner,
+              tag: normalized.tag,
+              amount: normalized.amount,
+              date: normalized.date,
+              type: normalized.type,
+            });
+          });
+        }
+
+        // Insert all transactions
+        if (allTransactions.length > 0) {
+          const rowsToInsert = allTransactions.map(t => ({
+            user_id: userId,
+            ...t,
+          }));
+
+          const { error } = await supabase
+            .from('transactions')
+            .insert(rowsToInsert);
+
+          if (error) handleSupabaseError(error, 'import transactions');
+        }
+
+        return true;
+      }
+
+      // Validate and normalize each month for localStorage
+      const normalizedMonths: MonthData[] = [];
+
       for (const month of months) {
         if (!month.month || !Array.isArray(month.input) || !Array.isArray(month.output)) {
           throw new Error(`Invalid month data format for: ${month.month || 'unknown'}`);
         }
-
-        // Normalize transactions (handle 'ammount' typo)
-        const normalizeTransaction = (t: LegacyTransaction): Transaction => ({
-          id: t.id,
-          owner: t.owner,
-          tag: t.tag,
-          // Handle both 'amount' and 'ammount' (legacy typo)
-          amount: t.amount ?? t.ammount ?? 0,
-          date: t.date,
-          type: t.type
-        });
 
         normalizedMonths.push({
           month: month.month,
@@ -388,8 +685,48 @@ export const FinanceService = {
    * Get recent transactions (last N)
    */
   async getRecentTransactions(limit: number = 5): Promise<Transaction[]> {
+    if (API_CONFIG.USE_SUPABASE) {
+      const userId = await ensureAuthenticated();
+
+      const { data, error } = await supabase
+        .from('transactions')
+        .select('*')
+        .eq('user_id', userId)
+        .order('date', { ascending: false })
+        .limit(limit);
+
+      if (error) handleSupabaseError(error, 'fetch recent transactions');
+
+      return (data || []).map(rowToTransaction);
+    }
+
     const all = await this.getAllTransactions();
     return all.slice(0, limit);
   },
-};
 
+  /**
+   * Delete all transactions (DEV ONLY)
+   * Use with caution - this permanently deletes all user transactions
+   */
+  async deleteAllTransactions(): Promise<boolean> {
+    if (API_CONFIG.USE_SUPABASE) {
+      const userId = await ensureAuthenticated();
+
+      const { error } = await supabase
+        .from('transactions')
+        .delete()
+        .eq('user_id', userId);
+
+      if (error) {
+        console.error('Delete all transactions error:', error);
+        return false;
+      }
+
+      return true;
+    }
+
+    // LocalStorage fallback
+    localStorage.removeItem('modulr_finance');
+    return true;
+  },
+};

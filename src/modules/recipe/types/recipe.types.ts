@@ -1,5 +1,5 @@
 export interface Recipe {
-  id: number;
+  id: string;           // UUID from Supabase
   title: string;
   ingredients: string;
   instructions?: string;

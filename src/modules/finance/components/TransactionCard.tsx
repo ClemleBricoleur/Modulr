@@ -3,7 +3,7 @@ import type { Transaction } from '../types/finance.types';
 
 interface TransactionCardProps {
     transaction: Transaction;
-    onDelete?: (id: number) => void;
+    onDelete?: (id: string) => void;
     showDelete?: boolean;
 }
 
@@ -22,7 +22,11 @@ export const TransactionCard = ({
     };
 
     const formatDate = (dateStr: string) => {
-        return new Date(dateStr).toLocaleDateString('fr-FR', {
+        // Parse as local time to avoid timezone shift
+        // dateStr is in format 'YYYY-MM-DD'
+        const [year, month, day] = dateStr.split('-').map(Number);
+        const date = new Date(year, month - 1, day); // month is 0-indexed
+        return date.toLocaleDateString('fr-FR', {
             day: '2-digit',
             month: 'short'
         });
@@ -32,8 +36,8 @@ export const TransactionCard = ({
         <div className="flex items-center justify-between p-3 bg-white dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700 animate-fade-in">
             <div className="flex items-center gap-3">
                 <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isIncome
-                        ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400'
-                        : 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400'
+                    ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400'
+                    : 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400'
                     }`}>
                     {isIncome ? <TrendingUp size={18} /> : <TrendingDown size={18} />}
                 </div>
@@ -49,8 +53,8 @@ export const TransactionCard = ({
 
             <div className="flex items-center gap-2">
                 <span className={`font-bold ${isIncome
-                        ? 'text-emerald-600 dark:text-emerald-400'
-                        : 'text-red-600 dark:text-red-400'
+                    ? 'text-emerald-600 dark:text-emerald-400'
+                    : 'text-red-600 dark:text-red-400'
                     }`}>
                     {isIncome ? '+' : '-'}{formatAmount(transaction.amount)}
                 </span>

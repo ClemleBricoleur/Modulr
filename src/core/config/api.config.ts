@@ -1,19 +1,16 @@
 /**
  * API Configuration
  * 
- * Toggle USE_SERVER to switch between LocalStorage and your Freebox server.
- * When your Python backend is ready, just set USE_SERVER = true and update BASE_URL.
+ * Toggle USE_SUPABASE to switch between LocalStorage and Supabase.
+ * Set USE_SUPABASE = true when your Supabase project is ready.
  */
 
 export const API_CONFIG = {
-  // Toggle this when your Freebox Python server is ready
-  USE_SERVER: false,
-  
-  // Your Freebox server IP (update when ready)
-  BASE_URL: 'http://192.168.1.X:8000/api',
+  // Toggle this to use Supabase instead of localStorage
+  USE_SUPABASE: true,
   
   // Simulate network delay for realistic UX testing (disable in production)
-  SIMULATE_DELAY: true,
+  SIMULATE_DELAY: false,
   DELAY_MS: 300,
 };
 
@@ -25,4 +22,3 @@ export const simulateDelay = async (): Promise<void> => {
     await new Promise(resolve => setTimeout(resolve, API_CONFIG.DELAY_MS));
   }
 };
-
