@@ -2,13 +2,10 @@ import { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, Filter, Calendar, Tag, User } from 'lucide-react';
 import { FinanceService } from '../services/financeService';
 import { TransactionCard } from '../components/TransactionCard';
+import { formatCurrency, formatMonth } from '../../../core/config/locale.config';
 import type { Transaction, ViewMode } from '../types/finance.types';
 
-interface ConsultationPageProps {
-  onBack?: () => void;  // Optional - navigation handled by parent
-}
-
-export const ConsultationPage = (_props: ConsultationPageProps) => {
+export const ConsultationPage = () => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<ViewMode>('month');
@@ -16,7 +13,6 @@ export const ConsultationPage = (_props: ConsultationPageProps) => {
   const [selectedMonth, setSelectedMonth] = useState(
     `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`
   );
-  const [, setAvailableYears] = useState<number[]>([]);
   const [filterCategory, setFilterCategory] = useState<string>('all');
   const [filterOwner, setFilterOwner] = useState<string>('all');
   const [filterType, setFilterType] = useState<'all' | 'input' | 'output'>('all');
@@ -26,17 +22,8 @@ export const ConsultationPage = (_props: ConsultationPageProps) => {
   const [categoryTotals, setCategoryTotals] = useState<Record<string, number>>({});
 
   useEffect(() => {
-    loadAvailableYears();
-  }, []);
-
-  useEffect(() => {
     loadTransactions();
   }, [viewMode, selectedYear, selectedMonth]);
-
-  const loadAvailableYears = async () => {
-    const years = await FinanceService.getAvailableYears();
-    setAvailableYears(years.length > 0 ? years : [new Date().getFullYear()]);
-  };
 
   const loadTransactions = async () => {
     setLoading(true);
@@ -100,19 +87,6 @@ export const ConsultationPage = (_props: ConsultationPageProps) => {
     setSelectedMonth(`${newYear}-${String(newMonth).padStart(2, '0')}`);
   };
 
-  const formatMonthDisplay = (monthKey: string) => {
-    const [year, month] = monthKey.split('-');
-    const date = new Date(parseInt(year), parseInt(month) - 1);
-    return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-  };
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('fr-FR', {
-      style: 'currency',
-      currency: 'CAD'
-    }).format(amount);
-  };
-
   const totalExpenses = filteredTransactions
     .filter(t => t.type === 'output')
     .reduce((sum, t) => sum + t.amount, 0);
@@ -152,7 +126,7 @@ export const ConsultationPage = (_props: ConsultationPageProps) => {
             </button>
             <div className="flex items-center gap-2 text-slate-800 dark:text-white font-medium">
               <Calendar size={18} className="text-emerald-600 dark:text-emerald-400" />
-              {formatMonthDisplay(selectedMonth)}
+              {formatMonth(selectedMonth)}
             </div>
             <button
               onClick={() => navigateMonth('next')}

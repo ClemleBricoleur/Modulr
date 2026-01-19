@@ -16,20 +16,24 @@ interface ThemeProviderProps {
 }
 
 export const ThemeProvider = ({ children }: ThemeProviderProps) => {
-  const [theme, setThemeState] = useState<Theme>(() => {
-    // Check localStorage first
+  const [theme, setThemeState] = useState<Theme>('light');
+  const [isInitialized, setIsInitialized] = useState(false);
+
+  // Initialize theme from localStorage/system preference (SSR-safe)
+  useEffect(() => {
     const stored = localStorage.getItem('modulr_theme');
     if (stored === 'light' || stored === 'dark') {
-      return stored;
+      setThemeState(stored);
+    } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+      setThemeState('dark');
     }
-    // Fall back to system preference
-    if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-      return 'dark';
-    }
-    return 'light';
-  });
+    setIsInitialized(true);
+  }, []);
 
+  // Apply theme to document
   useEffect(() => {
+    if (!isInitialized) return;
+    
     const root = document.documentElement;
     if (theme === 'dark') {
       root.classList.add('dark');
@@ -37,7 +41,7 @@ export const ThemeProvider = ({ children }: ThemeProviderProps) => {
       root.classList.remove('dark');
     }
     localStorage.setItem('modulr_theme', theme);
-  }, [theme]);
+  }, [theme, isInitialized]);
 
   const toggleTheme = () => {
     setThemeState(prev => (prev === 'dark' ? 'light' : 'dark'));
