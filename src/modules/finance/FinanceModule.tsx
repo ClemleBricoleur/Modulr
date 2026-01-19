@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowLeft } from 'lucide-react';
+import { Header } from '../../core/components/Header';
 import { DashboardPage } from './pages/DashboardPage';
 import { ConsultationPage } from './pages/ConsultationPage';
 import { AddTransactionPage } from './pages/AddTransactionPage';
@@ -42,17 +42,7 @@ export const FinanceModule = ({ goHome }: FinanceModuleProps) => {
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900 pb-20">
-      {/* Header */}
-      <div className="bg-emerald-600 text-white p-4 shadow-md flex items-center sticky top-0 z-10">
-        <button
-          onClick={handleBack}
-          className="mr-3 p-2 hover:bg-emerald-500 rounded-full transition-colors active:scale-95"
-          aria-label="Go back"
-        >
-          <ArrowLeft size={24} />
-        </button>
-        <h1 className="text-xl font-bold tracking-wide">{getTitle()}</h1>
-      </div>
+      <Header title={getTitle()} onBack={handleBack} className="bg-emerald-600" />
 
       {/* Content */}
       {currentPage === 'dashboard' && (
@@ -63,12 +53,11 @@ export const FinanceModule = ({ goHome }: FinanceModuleProps) => {
       )}
 
       {currentPage === 'consultation' && (
-        <ConsultationPage onBack={() => setCurrentPage('dashboard')} />
+        <ConsultationPage />
       )}
 
       {currentPage === 'add' && (
         <AddTransactionPage
-          onBack={() => setCurrentPage('dashboard')}
           onSuccess={handleTransactionAdded}
         />
       )}

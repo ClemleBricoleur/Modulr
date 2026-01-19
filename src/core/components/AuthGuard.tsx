@@ -21,10 +21,10 @@ export function AuthGuard({ children }: AuthGuardProps) {
   // Show loading spinner while checking authentication
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
+      <div className="min-h-screen bg-slate-100 dark:bg-slate-900 flex items-center justify-center">
         <div className="text-center">
           <Loader2 className="w-12 h-12 text-indigo-500 animate-spin mx-auto" />
-          <p className="mt-4 text-slate-400 text-sm">Loading...</p>
+          <p className="mt-4 text-slate-500 dark:text-slate-400 text-sm">Loading...</p>
         </div>
       </div>
     );
@@ -33,7 +33,7 @@ export function AuthGuard({ children }: AuthGuardProps) {
   // Show login modal if not authenticated
   if (!user) {
     return (
-      <div className="min-h-screen bg-slate-900">
+      <div className="min-h-screen bg-slate-100 dark:bg-slate-900">
         <LoginModal />
       </div>
     );

@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { TrendingUp, TrendingDown, Wallet, Download, Upload, Trash2 } from 'lucide-react';
 import { FinanceService } from '../services/financeService';
 import { TransactionCard } from '../components/TransactionCard';
+import { formatCurrency } from '../../../core/config/locale.config';
 import type { Transaction, PeriodFilter } from '../types/finance.types';
 
 const isDev = import.meta.env.DEV;
@@ -104,13 +105,6 @@ export const DashboardPage = ({ onNavigate }: DashboardPageProps) => {
     } finally {
       setDeletingAll(false);
     }
-  };
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('fr-FR', {
-      style: 'currency',
-      currency: 'CAD'
-    }).format(amount);
   };
 
   return (

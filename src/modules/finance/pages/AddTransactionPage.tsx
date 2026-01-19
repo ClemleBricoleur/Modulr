@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Plus, TrendingUp, TrendingDown, Check } from 'lucide-react';
 import { FinanceService } from '../services/financeService';
+import { formatCurrency } from '../../../core/config/locale.config';
 import {
   EXPENSE_CATEGORIES,
   INCOME_CATEGORIES,
@@ -9,7 +10,6 @@ import {
 } from '../types/finance.types';
 
 interface AddTransactionPageProps {
-  onBack?: () => void;  // Optional - navigation handled by parent
   onSuccess: () => void;
 }
 
@@ -56,11 +56,7 @@ export const AddTransactionPage = ({ onSuccess }: AddTransactionPageProps) => {
       setAmount('');
 
       // Show success message
-      const formattedAmount = new Intl.NumberFormat('fr-FR', {
-        style: 'currency',
-        currency: 'CAD'
-      }).format(parsedAmount);
-      setSuccessMessage(`${type === 'input' ? 'Income' : 'Expense'} of ${formattedAmount} added!`);
+      setSuccessMessage(`${type === 'input' ? 'Income' : 'Expense'} of ${formatCurrency(parsedAmount)} added!`);
 
       // Notify parent to refresh data (but don't navigate away)
       onSuccess();
