@@ -1,73 +1,111 @@
-# React + TypeScript + Vite
+# Modulr - Personal Finance Manager
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A modern, mobile-first PWA for managing personal finances. Built with React, TypeScript, and Supabase.
 
-Currently, two official plugins are available:
+## Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- **Transaction Management**: Track income and expenses with categories
+- **Dashboard**: View balance, recent transactions, and financial summaries
+- **Period Views**: Filter by month, year, or category
+- **Import/Export**: Backup and restore your data as JSON
+- **Dark Mode**: System-aware theme with manual toggle
+- **PWA Ready**: Install on mobile devices for offline access
+- **Cloud Sync**: Optional Supabase backend for cross-device sync
 
-## React Compiler
+## Tech Stack
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- **Frontend**: React 19, TypeScript, Vite
+- **Styling**: Tailwind CSS v4
+- **Backend**: Supabase (PostgreSQL + Auth)
+- **Icons**: Lucide React
+- **PWA**: vite-plugin-pwa
 
-## Expanding the ESLint configuration
+## Getting Started
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+### Prerequisites
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+- Node.js 18+
+- npm or pnpm
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+### Installation
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+# Clone the repository
+git clone <repo-url>
+cd Modulr
+
+# Install dependencies
+npm install
+
+# Start development server
+npm run dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+### Environment Variables
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+Create a `.env` file in the root directory:
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```env
+VITE_SUPABASE_URL=your-supabase-url
+VITE_SUPABASE_ANON_KEY=your-supabase-anon-key
 ```
+
+### Supabase Setup
+
+1. Create a new Supabase project
+2. Run the SQL migrations in order:
+   - `supabase/migrations/001_initial_schema.sql`
+   - `supabase/migrations/002_rls_policies.sql`
+3. Enable email authentication in Supabase Auth settings
+
+## Configuration
+
+### API Mode
+
+Edit `src/core/config/api.config.ts` to toggle between Supabase and localStorage:
+
+```typescript
+export const API_CONFIG = {
+  USE_SUPABASE: true,  // Set to false for local-only mode
+};
+```
+
+### Locale & Currency
+
+Edit `src/core/config/locale.config.ts` to change currency and locale:
+
+```typescript
+export const LOCALE_CONFIG = {
+  locale: 'fr-FR',
+  currency: 'CAD',
+};
+```
+
+## Project Structure
+
+```
+src/
+├── core/                 # Shared core functionality
+│   ├── components/       # Reusable UI components
+│   ├── config/          # App configuration
+│   ├── context/         # React contexts (Auth, Theme)
+│   └── lib/             # Utility functions
+├── modules/             # Feature modules
+│   └── finance/         # Finance module
+│       ├── components/  # Finance-specific components
+│       ├── pages/       # Finance pages
+│       ├── services/    # Data services
+│       └── types/       # TypeScript types
+└── App.tsx              # Main app component
+```
+
+## Scripts
+
+- `npm run dev` - Start development server
+- `npm run build` - Build for production
+- `npm run preview` - Preview production build
+- `npm run lint` - Run ESLint
+
+## License
+
+MIT

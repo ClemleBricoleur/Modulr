@@ -1,4 +1,5 @@
 import { Trash2, TrendingUp, TrendingDown } from 'lucide-react';
+import { formatCurrency, formatDate } from '../../../core/config/locale.config';
 import type { Transaction } from '../types/finance.types';
 
 interface TransactionCardProps {
@@ -13,24 +14,6 @@ export const TransactionCard = ({
     showDelete = true
 }: TransactionCardProps) => {
     const isIncome = transaction.type === 'input';
-
-    const formatAmount = (amount: number) => {
-        return new Intl.NumberFormat('fr-FR', {
-            style: 'currency',
-            currency: 'CAD'
-        }).format(amount);
-    };
-
-    const formatDate = (dateStr: string) => {
-        // Parse as local time to avoid timezone shift
-        // dateStr is in format 'YYYY-MM-DD'
-        const [year, month, day] = dateStr.split('-').map(Number);
-        const date = new Date(year, month - 1, day); // month is 0-indexed
-        return date.toLocaleDateString('fr-FR', {
-            day: '2-digit',
-            month: 'short'
-        });
-    };
 
     return (
         <div className="flex items-center justify-between p-3 bg-white dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700 animate-fade-in">
@@ -56,7 +39,7 @@ export const TransactionCard = ({
                     ? 'text-emerald-600 dark:text-emerald-400'
                     : 'text-red-600 dark:text-red-400'
                     }`}>
-                    {isIncome ? '+' : '-'}{formatAmount(transaction.amount)}
+                    {isIncome ? '+' : '-'}{formatCurrency(transaction.amount)}
                 </span>
 
                 {showDelete && onDelete && (

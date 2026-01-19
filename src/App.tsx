@@ -1,7 +1,5 @@
 import { useState, useEffect } from 'react';
 import {
-  ChefHat,
-  Martini,
   Settings,
   Wifi,
   WifiOff,
@@ -9,15 +7,13 @@ import {
   Wallet,
   LogOut
 } from 'lucide-react';
-import { RecipeModule } from './modules/recipe/RecipeModule';
-import { CocktailModule } from './modules/cocktail/CocktailModule';
 import { FinanceModule } from './modules/finance/FinanceModule';
 import { SettingsModal } from './core/components/SettingsModal';
 import { AuthProvider, useAuth } from './core/context/AuthContext';
 import { AuthGuard } from './core/components/AuthGuard';
 import { API_CONFIG } from './core/config/api.config';
 
-type ActiveModule = 'recipe' | 'cocktail' | 'finance' | null;
+type ActiveModule = 'finance' | null;
 
 function AppContent() {
   const { user, signOut } = useAuth();
@@ -56,14 +52,6 @@ function AppContent() {
   };
 
   // Render active module
-  if (activeModule === 'recipe') {
-    return <RecipeModule goHome={() => setActiveModule(null)} />;
-  }
-
-  if (activeModule === 'cocktail') {
-    return <CocktailModule goHome={() => setActiveModule(null)} />;
-  }
-
   if (activeModule === 'finance') {
     return <FinanceModule goHome={() => setActiveModule(null)} />;
   }
@@ -115,41 +103,11 @@ function AppContent() {
 
         {/* App Grid */}
         <div className="grid grid-cols-2 gap-4">
-          {/* Recipe Module Launcher */}
-          <button
-            onClick={() => setActiveModule('recipe')}
-            className="aspect-square bg-gradient-to-br from-indigo-600 to-indigo-700 rounded-3xl p-5 flex flex-col justify-between hover:from-indigo-500 hover:to-indigo-600 transition-all shadow-lg shadow-indigo-900/40 dark:shadow-indigo-900/40 text-left group active:scale-95 animate-fade-in-up text-white"
-            style={{ animationDelay: '100ms' }}
-          >
-            <div className="bg-white/20 w-12 h-12 rounded-2xl flex items-center justify-center group-hover:scale-110 group-hover:bg-white/30 transition-all">
-              <ChefHat size={26} className="text-white" />
-            </div>
-            <div>
-              <span className="block text-2xl font-bold">Food</span>
-              <span className="text-indigo-200 text-sm">Recipe Manager</span>
-            </div>
-          </button>
-
-          {/* Cocktail Module Launcher */}
-          <button
-            onClick={() => setActiveModule('cocktail')}
-            className="aspect-square bg-gradient-to-br from-rose-500 to-rose-600 rounded-3xl p-5 flex flex-col justify-between hover:from-rose-400 hover:to-rose-500 transition-all shadow-lg shadow-rose-900/40 dark:shadow-rose-900/40 text-left group active:scale-95 animate-fade-in-up text-white"
-            style={{ animationDelay: '200ms' }}
-          >
-            <div className="bg-white/20 w-12 h-12 rounded-2xl flex items-center justify-center group-hover:scale-110 group-hover:bg-white/30 transition-all">
-              <Martini size={26} className="text-white" />
-            </div>
-            <div>
-              <span className="block text-2xl font-bold">Bar</span>
-              <span className="text-rose-200 text-sm">Cocktail Manager</span>
-            </div>
-          </button>
-
           {/* Finance Module Launcher */}
           <button
             onClick={() => setActiveModule('finance')}
             className="aspect-square bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-3xl p-5 flex flex-col justify-between hover:from-emerald-400 hover:to-emerald-500 transition-all shadow-lg shadow-emerald-900/40 dark:shadow-emerald-900/40 text-left group active:scale-95 animate-fade-in-up text-white"
-            style={{ animationDelay: '300ms' }}
+            style={{ animationDelay: '100ms' }}
           >
             <div className="bg-white/20 w-12 h-12 rounded-2xl flex items-center justify-center group-hover:scale-110 group-hover:bg-white/30 transition-all">
               <Wallet size={26} className="text-white" />
@@ -164,7 +122,7 @@ function AppContent() {
           <button
             onClick={() => setIsSettingsOpen(true)}
             className="aspect-square bg-slate-200/50 dark:bg-slate-800/50 rounded-3xl p-5 flex flex-col justify-center items-center text-slate-400 dark:text-slate-500 hover:bg-slate-300/50 dark:hover:bg-slate-700/50 hover:text-slate-500 dark:hover:text-slate-400 transition-all active:scale-95 animate-fade-in-up"
-            style={{ animationDelay: '400ms' }}
+            style={{ animationDelay: '200ms' }}
           >
             <Settings size={32} strokeWidth={1.5} />
             <span className="text-xs mt-2">System</span>
