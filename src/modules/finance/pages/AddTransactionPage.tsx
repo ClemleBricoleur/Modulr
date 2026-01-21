@@ -3,8 +3,6 @@ import { Plus, TrendingUp, TrendingDown, Check } from 'lucide-react';
 import { FinanceService } from '../services/financeService';
 import { formatCurrency } from '../../../core/config/locale.config';
 import {
-  EXPENSE_CATEGORIES,
-  INCOME_CATEGORIES,
   DEFAULT_OWNERS,
   type TransactionType
 } from '../types/finance.types';
@@ -17,12 +15,24 @@ export const AddTransactionPage = ({ onSuccess }: AddTransactionPageProps) => {
   const [type, setType] = useState<TransactionType>('output');
   const [owner, setOwner] = useState<string>(DEFAULT_OWNERS[0]);
   const [customOwner, setCustomOwner] = useState('');
-  const [tag, setTag] = useState<string>(EXPENSE_CATEGORIES[0]);
+  const [categories, setCategories] = useState<string[]>([]);
+  const [tag, setTag] = useState<string>('');
+  const [customTag, setCustomTag] = useState('');
   const [amount, setAmount] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showCustomOwner, setShowCustomOwner] = useState(false);
+  const [showCustomTag, setShowCustomTag] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  // Load categories when type changes
+  useEffect(() => {
+    const allCategories = FinanceService.getAllCategories(type);
+    setCategories(allCategories);
+    setTag(allCategories[0] || '');
+    setShowCustomTag(false);
+    setCustomTag('');
+  }, [type]);
 
   // Auto-hide success message after 3 seconds
   useEffect(() => {
@@ -34,19 +44,27 @@ export const AddTransactionPage = ({ onSuccess }: AddTransactionPageProps) => {
     }
   }, [successMessage]);
 
-  const categories = type === 'output' ? EXPENSE_CATEGORIES : INCOME_CATEGORIES;
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     const parsedAmount = parseFloat(amount);
     if (!parsedAmount || parsedAmount <= 0) return;
 
+    const finalTag = showCustomTag ? customTag.trim().toLowerCase() : tag;
+    if (!finalTag) return;
+
     setIsSubmitting(true);
     try {
+      // If using a custom tag, save it for future use
+      if (showCustomTag && customTag.trim()) {
+        FinanceService.addCustomCategory(type, customTag);
+        // Refresh categories list
+        setCategories(FinanceService.getAllCategories(type));
+      }
+
       await FinanceService.addTransaction({
         owner: showCustomOwner ? customOwner : owner,
-        tag,
+        tag: finalTag,
         amount: parsedAmount,
         date,
         type
@@ -70,7 +88,7 @@ export const AddTransactionPage = ({ onSuccess }: AddTransactionPageProps) => {
 
   const handleTypeChange = (newType: TransactionType) => {
     setType(newType);
-    setTag(newType === 'output' ? EXPENSE_CATEGORIES[0] : INCOME_CATEGORIES[0]);
+    // Categories will be updated by the useEffect that watches type
   };
 
   return (
@@ -182,13 +200,16 @@ export const AddTransactionPage = ({ onSuccess }: AddTransactionPageProps) => {
         {/* Category */}
         <div className="bg-white dark:bg-slate-800 rounded-2xl p-4 border border-slate-100 dark:border-slate-700">
           <label className="text-sm text-slate-500 dark:text-slate-400 block mb-3">Category</label>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2 mb-3">
             {categories.map(cat => (
               <button
                 key={cat}
                 type="button"
-                onClick={() => setTag(cat)}
-                className={`px-4 py-2 rounded-full text-sm font-medium capitalize transition-all ${tag === cat
+                onClick={() => {
+                  setTag(cat);
+                  setShowCustomTag(false);
+                }}
+                className={`px-4 py-2 rounded-full text-sm font-medium capitalize transition-all ${tag === cat && !showCustomTag
                   ? type === 'output'
                     ? 'bg-red-600 text-white'
                     : 'bg-emerald-600 text-white'
@@ -198,7 +219,30 @@ export const AddTransactionPage = ({ onSuccess }: AddTransactionPageProps) => {
                 {cat}
               </button>
             ))}
+            <button
+              type="button"
+              onClick={() => setShowCustomTag(true)}
+              className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${showCustomTag
+                ? type === 'output'
+                  ? 'bg-red-600 text-white'
+                  : 'bg-emerald-600 text-white'
+                : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-600'
+                }`}
+            >
+              + Custom
+            </button>
           </div>
+
+          {showCustomTag && (
+            <input
+              type="text"
+              placeholder="Enter custom category..."
+              value={customTag}
+              onChange={e => setCustomTag(e.target.value)}
+              className="w-full p-3 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              required
+            />
+          )}
         </div>
 
         {/* Date */}
@@ -216,7 +260,7 @@ export const AddTransactionPage = ({ onSuccess }: AddTransactionPageProps) => {
         {/* Submit Button */}
         <button
           type="submit"
-          disabled={isSubmitting || !amount}
+          disabled={isSubmitting || !amount || (showCustomTag && !customTag.trim())}
           className={`w-full py-4 rounded-2xl font-bold text-white shadow-lg transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 ${type === 'output'
             ? 'bg-red-600 hover:bg-red-700 shadow-red-500/30'
             : 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-500/30'
