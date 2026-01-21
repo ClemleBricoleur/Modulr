@@ -705,6 +705,36 @@ export const FinanceService = {
   },
 
   /**
+   * Get balance totals grouped by owner
+   */
+  async getBalanceByOwner(filter: PeriodFilter = 'all', year?: number): Promise<Record<string, { totalInput: number; totalOutput: number; balance: number }>> {
+    let transactions: Transaction[];
+
+    if (filter === 'year' && year) {
+      transactions = await this.getTransactionsByYear(year);
+    } else {
+      transactions = await this.getAllTransactions();
+    }
+
+    const ownerBalances: Record<string, { totalInput: number; totalOutput: number; balance: number }> = {};
+
+    transactions.forEach(t => {
+      if (!ownerBalances[t.owner]) {
+        ownerBalances[t.owner] = { totalInput: 0, totalOutput: 0, balance: 0 };
+      }
+
+      if (t.type === 'input') {
+        ownerBalances[t.owner].totalInput += t.amount;
+      } else {
+        ownerBalances[t.owner].totalOutput += t.amount;
+      }
+      ownerBalances[t.owner].balance = ownerBalances[t.owner].totalInput - ownerBalances[t.owner].totalOutput;
+    });
+
+    return ownerBalances;
+  },
+
+  /**
    * Delete all transactions (DEV ONLY)
    * Use with caution - this permanently deletes all user transactions
    */
@@ -728,5 +758,46 @@ export const FinanceService = {
     // LocalStorage fallback
     localStorage.removeItem('modulr_finance');
     return true;
+  },
+
+  /**
+   * Get custom categories for a transaction type
+   */
+  getCustomCategories(type: 'input' | 'output'): string[] {
+    const key = `modulr_custom_categories_${type}`;
+    const data = localStorage.getItem(key);
+    return data ? JSON.parse(data) : [];
+  },
+
+  /**
+   * Add a custom category for a transaction type
+   */
+  addCustomCategory(type: 'input' | 'output', category: string): void {
+    const key = `modulr_custom_categories_${type}`;
+    const existing = this.getCustomCategories(type);
+    
+    // Normalize the category name (lowercase, trimmed)
+    const normalized = category.trim().toLowerCase();
+    
+    // Only add if it doesn't already exist
+    if (normalized && !existing.includes(normalized)) {
+      existing.push(normalized);
+      localStorage.setItem(key, JSON.stringify(existing));
+    }
+  },
+
+  /**
+   * Get all categories (default + custom) for a transaction type
+   */
+  getAllCategories(type: 'input' | 'output'): string[] {
+    // Import dynamically to avoid circular dependency issues
+    const defaultCategories = type === 'output' 
+      ? ['assurances', 'nourriture', 'deplacement', 'loyer', 'loisirs', 'santé', 'shopping', 'autres']
+      : ['salaire', 'remboursement', 'cadeau', 'autres'];
+    
+    const custom = this.getCustomCategories(type);
+    
+    // Return default categories + custom ones (excluding duplicates)
+    return [...defaultCategories, ...custom.filter(c => !defaultCategories.includes(c))];
   },
 };

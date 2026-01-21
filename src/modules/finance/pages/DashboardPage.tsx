@@ -1,9 +1,15 @@
 import { useState, useEffect, useRef } from 'react';
-import { TrendingUp, TrendingDown, Wallet, Download, Upload, Trash2 } from 'lucide-react';
+import { TrendingUp, TrendingDown, Wallet, Download, Upload, Trash2, User } from 'lucide-react';
 import { FinanceService } from '../services/financeService';
 import { TransactionCard } from '../components/TransactionCard';
 import { formatCurrency } from '../../../core/config/locale.config';
 import type { Transaction, PeriodFilter } from '../types/finance.types';
+
+interface OwnerBalance {
+  totalInput: number;
+  totalOutput: number;
+  balance: number;
+}
 
 const isDev = import.meta.env.DEV;
 
@@ -14,6 +20,7 @@ interface DashboardPageProps {
 export const DashboardPage = ({ onNavigate }: DashboardPageProps) => {
   const [periodFilter, setPeriodFilter] = useState<PeriodFilter>('all');
   const [totals, setTotals] = useState({ totalInput: 0, totalOutput: 0, balance: 0 });
+  const [ownerBalances, setOwnerBalances] = useState<Record<string, OwnerBalance>>({});
   const [recentTransactions, setRecentTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [importing, setImporting] = useState(false);
@@ -29,12 +36,14 @@ export const DashboardPage = ({ onNavigate }: DashboardPageProps) => {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [totalsData, recent] = await Promise.all([
+      const [totalsData, recent, balancesByOwner] = await Promise.all([
         FinanceService.getTotals(periodFilter, currentYear),
-        FinanceService.getRecentTransactions(5)
+        FinanceService.getRecentTransactions(5),
+        FinanceService.getBalanceByOwner(periodFilter, currentYear)
       ]);
       setTotals(totalsData);
       setRecentTransactions(recent);
+      setOwnerBalances(balancesByOwner);
     } catch (error) {
       console.error('Failed to load dashboard data:', error);
     } finally {
@@ -165,6 +174,31 @@ export const DashboardPage = ({ onNavigate }: DashboardPageProps) => {
           </p>
         </div>
       </div>
+
+      {/* Owner Balances */}
+      {!loading && Object.keys(ownerBalances).length > 0 && (
+        <div className="bg-white dark:bg-slate-800 rounded-2xl p-4 border border-slate-100 dark:border-slate-700">
+          <h3 className="text-sm font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+            <User size={14} />
+            Balance by Owner
+          </h3>
+          <div className="space-y-3">
+            {Object.entries(ownerBalances).map(([owner, data]) => (
+              <div key={owner} className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center text-white text-sm font-medium">
+                    {owner.charAt(0).toUpperCase()}
+                  </div>
+                  <span className="font-medium text-slate-700 dark:text-slate-300">{owner}</span>
+                </div>
+                <span className={`font-bold ${data.balance >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
+                  {formatCurrency(data.balance)}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Action Buttons */}
       <div className="grid grid-cols-2 gap-3">
