@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Plus, TrendingUp, TrendingDown, Check } from 'lucide-react';
 import { FinanceService } from '../services/financeService';
 import { formatCurrency } from '../../../core/config/locale.config';
-import {
-  DEFAULT_OWNERS,
-  type TransactionType
+import type {
+  TransactionType,
+  CategoryOption,
+  OwnerOption
 } from '../types/finance.types';
 
 interface AddTransactionPageProps {
@@ -13,9 +14,10 @@ interface AddTransactionPageProps {
 
 export const AddTransactionPage = ({ onSuccess }: AddTransactionPageProps) => {
   const [type, setType] = useState<TransactionType>('output');
-  const [owner, setOwner] = useState<string>(DEFAULT_OWNERS[0]);
+  const [owners, setOwners] = useState<OwnerOption[]>([]);
+  const [owner, setOwner] = useState<string>('');
   const [customOwner, setCustomOwner] = useState('');
-  const [categories, setCategories] = useState<string[]>([]);
+  const [categories, setCategories] = useState<CategoryOption[]>([]);
   const [tag, setTag] = useState<string>('');
   const [customTag, setCustomTag] = useState('');
   const [amount, setAmount] = useState('');
@@ -24,15 +26,53 @@ export const AddTransactionPage = ({ onSuccess }: AddTransactionPageProps) => {
   const [showCustomOwner, setShowCustomOwner] = useState(false);
   const [showCustomTag, setShowCustomTag] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [isLoadingCategories, setIsLoadingCategories] = useState(false);
+  const [isLoadingOwners, setIsLoadingOwners] = useState(false);
+
+  // Load owners on mount
+  const loadOwners = useCallback(async () => {
+    setIsLoadingOwners(true);
+    try {
+      const allOwners = await FinanceService.getAllOwnersFromDB();
+      setOwners(allOwners);
+      if (allOwners.length > 0 && !owner) {
+        setOwner(allOwners[0].name);
+      }
+    } catch (error) {
+      console.error('Failed to load owners:', error);
+    } finally {
+      setIsLoadingOwners(false);
+    }
+  }, [owner]);
+
+  // Load categories when type changes
+  const loadCategories = useCallback(async () => {
+    setIsLoadingCategories(true);
+    try {
+      const categoryType = type === 'input' ? 'income' : 'expense';
+      const allCategories = await FinanceService.getAllCategoriesFromDB(categoryType);
+      setCategories(allCategories);
+      if (allCategories.length > 0) {
+        setTag(allCategories[0].name);
+      }
+      setShowCustomTag(false);
+      setCustomTag('');
+    } catch (error) {
+      console.error('Failed to load categories:', error);
+    } finally {
+      setIsLoadingCategories(false);
+    }
+  }, [type]);
+
+  // Load owners on mount
+  useEffect(() => {
+    loadOwners();
+  }, [loadOwners]);
 
   // Load categories when type changes
   useEffect(() => {
-    const allCategories = FinanceService.getAllCategories(type);
-    setCategories(allCategories);
-    setTag(allCategories[0] || '');
-    setShowCustomTag(false);
-    setCustomTag('');
-  }, [type]);
+    loadCategories();
+  }, [loadCategories]);
 
   // Auto-hide success message after 3 seconds
   useEffect(() => {
@@ -50,20 +90,31 @@ export const AddTransactionPage = ({ onSuccess }: AddTransactionPageProps) => {
     const parsedAmount = parseFloat(amount);
     if (!parsedAmount || parsedAmount <= 0) return;
 
-    const finalTag = showCustomTag ? customTag.trim().toLowerCase() : tag;
+    const finalTag = showCustomTag ? customTag.trim() : tag;
     if (!finalTag) return;
+
+    const finalOwner = showCustomOwner ? customOwner.trim() : owner;
+    if (!finalOwner) return;
 
     setIsSubmitting(true);
     try {
-      // If using a custom tag, save it for future use
+      // If using a custom tag, save it to the database for future use
       if (showCustomTag && customTag.trim()) {
-        FinanceService.addCustomCategory(type, customTag);
+        const categoryType = type === 'input' ? 'income' : 'expense';
+        await FinanceService.addUserCategory(customTag.trim(), categoryType);
         // Refresh categories list
-        setCategories(FinanceService.getAllCategories(type));
+        await loadCategories();
+      }
+
+      // If using a custom owner, save it to the database for future use
+      if (showCustomOwner && customOwner.trim()) {
+        await FinanceService.addUserOwner(customOwner.trim());
+        // Refresh owners list
+        await loadOwners();
       }
 
       await FinanceService.addTransaction({
-        owner: showCustomOwner ? customOwner : owner,
+        owner: finalOwner,
         tag: finalTag,
         amount: parsedAmount,
         date,
@@ -156,34 +207,40 @@ export const AddTransactionPage = ({ onSuccess }: AddTransactionPageProps) => {
         <div className="bg-white dark:bg-slate-800 rounded-2xl p-4 border border-slate-100 dark:border-slate-700">
           <label className="text-sm text-slate-500 dark:text-slate-400 block mb-3">Owner</label>
 
-          <div className="flex flex-wrap gap-2 mb-3">
-            {DEFAULT_OWNERS.map(o => (
+          {isLoadingOwners ? (
+            <div className="flex items-center justify-center py-4">
+              <div className="w-5 h-5 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+            </div>
+          ) : (
+            <div className="flex flex-wrap gap-2 mb-3">
+              {owners.map(o => (
+                <button
+                  key={o.name}
+                  type="button"
+                  onClick={() => {
+                    setOwner(o.name);
+                    setShowCustomOwner(false);
+                  }}
+                  className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${owner === o.name && !showCustomOwner
+                    ? 'bg-emerald-600 text-white'
+                    : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-600'
+                    }`}
+                >
+                  {o.name}
+                </button>
+              ))}
               <button
-                key={o}
                 type="button"
-                onClick={() => {
-                  setOwner(o);
-                  setShowCustomOwner(false);
-                }}
-                className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${owner === o && !showCustomOwner
+                onClick={() => setShowCustomOwner(true)}
+                className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${showCustomOwner
                   ? 'bg-emerald-600 text-white'
                   : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-600'
                   }`}
               >
-                {o}
+                + Custom
               </button>
-            ))}
-            <button
-              type="button"
-              onClick={() => setShowCustomOwner(true)}
-              className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${showCustomOwner
-                ? 'bg-emerald-600 text-white'
-                : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-600'
-                }`}
-            >
-              + Custom
-            </button>
-          </div>
+            </div>
+          )}
 
           {showCustomOwner && (
             <input
@@ -200,38 +257,45 @@ export const AddTransactionPage = ({ onSuccess }: AddTransactionPageProps) => {
         {/* Category */}
         <div className="bg-white dark:bg-slate-800 rounded-2xl p-4 border border-slate-100 dark:border-slate-700">
           <label className="text-sm text-slate-500 dark:text-slate-400 block mb-3">Category</label>
-          <div className="flex flex-wrap gap-2 mb-3">
-            {categories.map(cat => (
+
+          {isLoadingCategories ? (
+            <div className="flex items-center justify-center py-4">
+              <div className="w-5 h-5 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+            </div>
+          ) : (
+            <div className="flex flex-wrap gap-2 mb-3">
+              {categories.map(cat => (
+                <button
+                  key={cat.name}
+                  type="button"
+                  onClick={() => {
+                    setTag(cat.name);
+                    setShowCustomTag(false);
+                  }}
+                  className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${tag === cat.name && !showCustomTag
+                    ? type === 'output'
+                      ? 'bg-red-600 text-white'
+                      : 'bg-emerald-600 text-white'
+                    : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-600'
+                    }`}
+                >
+                  {cat.name}
+                </button>
+              ))}
               <button
-                key={cat}
                 type="button"
-                onClick={() => {
-                  setTag(cat);
-                  setShowCustomTag(false);
-                }}
-                className={`px-4 py-2 rounded-full text-sm font-medium capitalize transition-all ${tag === cat && !showCustomTag
+                onClick={() => setShowCustomTag(true)}
+                className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${showCustomTag
                   ? type === 'output'
                     ? 'bg-red-600 text-white'
                     : 'bg-emerald-600 text-white'
                   : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-600'
                   }`}
               >
-                {cat}
+                + Custom
               </button>
-            ))}
-            <button
-              type="button"
-              onClick={() => setShowCustomTag(true)}
-              className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${showCustomTag
-                ? type === 'output'
-                  ? 'bg-red-600 text-white'
-                  : 'bg-emerald-600 text-white'
-                : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-600'
-                }`}
-            >
-              + Custom
-            </button>
-          </div>
+            </div>
+          )}
 
           {showCustomTag && (
             <input
@@ -260,7 +324,7 @@ export const AddTransactionPage = ({ onSuccess }: AddTransactionPageProps) => {
         {/* Submit Button */}
         <button
           type="submit"
-          disabled={isSubmitting || !amount || (showCustomTag && !customTag.trim())}
+          disabled={isSubmitting || !amount || (showCustomTag && !customTag.trim()) || (showCustomOwner && !customOwner.trim())}
           className={`w-full py-4 rounded-2xl font-bold text-white shadow-lg transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 ${type === 'output'
             ? 'bg-red-600 hover:bg-red-700 shadow-red-500/30'
             : 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-500/30'
