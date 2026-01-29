@@ -6,8 +6,16 @@ import type {
   MonthData,
   CreateTransactionInput,
   ExportData,
-  PeriodFilter
+  PeriodFilter,
+  Category,
+  UserCategory,
+  Owner,
+  UserOwner,
+  CategoryOption,
+  OwnerOption,
+  CategoryType
 } from '../types/finance.types';
+import { EXPENSE_CATEGORIES, INCOME_CATEGORIES, DEFAULT_OWNERS } from '../types/finance.types';
 
 const STORAGE_KEY = 'modulr_finance';
 
@@ -760,8 +768,354 @@ export const FinanceService = {
     return true;
   },
 
+  // ============================================
+  // CATEGORY METHODS (Database)
+  // ============================================
+
   /**
-   * Get custom categories for a transaction type
+   * Get default categories from database
+   */
+  async getDefaultCategories(type: CategoryType): Promise<Category[]> {
+    if (API_CONFIG.USE_SUPABASE) {
+      const dbType = type === 'income' ? 'income' : 'expense';
+
+      const { data, error } = await supabase
+        .from('categories')
+        .select('*')
+        .eq('type', dbType)
+        .order('name');
+
+      if (error) handleSupabaseError(error, 'fetch default categories');
+
+      return (data || []) as Category[];
+    }
+
+    // Fallback to constants
+    const categories = type === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES;
+    return categories.map((name, index) => ({
+      id: `default-${type}-${index}`,
+      name,
+      type,
+      created_at: new Date().toISOString()
+    }));
+  },
+
+  /**
+   * Get user's custom categories from database
+   */
+  async getUserCategories(type: CategoryType): Promise<UserCategory[]> {
+    if (API_CONFIG.USE_SUPABASE) {
+      const userId = await ensureAuthenticated();
+      const dbType = type === 'income' ? 'income' : 'expense';
+
+      const { data, error } = await supabase
+        .from('user_categories')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('type', dbType)
+        .order('name');
+
+      if (error) handleSupabaseError(error, 'fetch user categories');
+
+      return (data || []) as UserCategory[];
+    }
+
+    // Fallback to localStorage for custom categories
+    const key = `modulr_custom_categories_${type === 'income' ? 'input' : 'output'}`;
+    const stored = localStorage.getItem(key);
+    const names: string[] = stored ? JSON.parse(stored) : [];
+
+    return names.map((name, index) => ({
+      id: `custom-${type}-${index}`,
+      user_id: 'local',
+      name,
+      type,
+      created_at: new Date().toISOString()
+    }));
+  },
+
+  /**
+   * Add a custom category for the user
+   */
+  async addUserCategory(name: string, type: CategoryType): Promise<UserCategory | null> {
+    const trimmedName = name.trim();
+    if (!trimmedName) return null;
+
+    if (API_CONFIG.USE_SUPABASE) {
+      const userId = await ensureAuthenticated();
+      const dbType = type === 'income' ? 'income' : 'expense';
+
+      const { data, error } = await supabase
+        .from('user_categories')
+        .insert({
+          user_id: userId,
+          name: trimmedName,
+          type: dbType
+        })
+        .select()
+        .single();
+
+      if (error) {
+        // Handle unique constraint violation (category already exists)
+        if (error.code === '23505') {
+          console.warn('Category already exists:', trimmedName);
+          return null;
+        }
+        handleSupabaseError(error, 'add user category');
+      }
+
+      return data as UserCategory;
+    }
+
+    // Fallback to localStorage
+    const key = `modulr_custom_categories_${type === 'income' ? 'input' : 'output'}`;
+    const stored = localStorage.getItem(key);
+    const existing: string[] = stored ? JSON.parse(stored) : [];
+
+    if (!existing.includes(trimmedName)) {
+      existing.push(trimmedName);
+      localStorage.setItem(key, JSON.stringify(existing));
+    }
+
+    return {
+      id: `custom-${type}-${existing.length}`,
+      user_id: 'local',
+      name: trimmedName,
+      type,
+      created_at: new Date().toISOString()
+    };
+  },
+
+  /**
+   * Delete a user's custom category
+   */
+  async deleteUserCategory(id: string): Promise<boolean> {
+    if (API_CONFIG.USE_SUPABASE) {
+      const userId = await ensureAuthenticated();
+
+      const { error } = await supabase
+        .from('user_categories')
+        .delete()
+        .eq('id', id)
+        .eq('user_id', userId);
+
+      if (error) {
+        console.error('Delete user category error:', error);
+        return false;
+      }
+
+      return true;
+    }
+
+    // localStorage deletion not implemented (would need name-based deletion)
+    return false;
+  },
+
+  /**
+   * Get all categories (default + custom) for a transaction type
+   */
+  async getAllCategoriesFromDB(type: CategoryType): Promise<CategoryOption[]> {
+    const [defaultCats, userCats] = await Promise.all([
+      this.getDefaultCategories(type),
+      this.getUserCategories(type)
+    ]);
+
+    const options: CategoryOption[] = [];
+
+    // Add default categories
+    defaultCats.forEach(cat => {
+      options.push({
+        name: cat.name,
+        isCustom: false
+      });
+    });
+
+    // Add user custom categories (excluding duplicates)
+    const defaultNames = new Set(defaultCats.map(c => c.name.toLowerCase()));
+    userCats.forEach(cat => {
+      if (!defaultNames.has(cat.name.toLowerCase())) {
+        options.push({
+          name: cat.name,
+          isCustom: true,
+          id: cat.id
+        });
+      }
+    });
+
+    return options;
+  },
+
+  // ============================================
+  // OWNER METHODS (Database)
+  // ============================================
+
+  /**
+   * Get default owners from database
+   */
+  async getDefaultOwners(): Promise<Owner[]> {
+    if (API_CONFIG.USE_SUPABASE) {
+      const { data, error } = await supabase
+        .from('owners')
+        .select('*')
+        .order('name');
+
+      if (error) handleSupabaseError(error, 'fetch default owners');
+
+      return (data || []) as Owner[];
+    }
+
+    // Fallback to constants
+    return DEFAULT_OWNERS.map((name, index) => ({
+      id: `default-owner-${index}`,
+      name,
+      created_at: new Date().toISOString()
+    }));
+  },
+
+  /**
+   * Get user's custom owners from database
+   */
+  async getUserOwners(): Promise<UserOwner[]> {
+    if (API_CONFIG.USE_SUPABASE) {
+      const userId = await ensureAuthenticated();
+
+      const { data, error } = await supabase
+        .from('user_owners')
+        .select('*')
+        .eq('user_id', userId)
+        .order('name');
+
+      if (error) handleSupabaseError(error, 'fetch user owners');
+
+      return (data || []) as UserOwner[];
+    }
+
+    // Fallback to localStorage
+    const stored = localStorage.getItem('modulr_custom_owners');
+    const names: string[] = stored ? JSON.parse(stored) : [];
+
+    return names.map((name, index) => ({
+      id: `custom-owner-${index}`,
+      user_id: 'local',
+      name,
+      created_at: new Date().toISOString()
+    }));
+  },
+
+  /**
+   * Add a custom owner for the user
+   */
+  async addUserOwner(name: string): Promise<UserOwner | null> {
+    const trimmedName = name.trim();
+    if (!trimmedName) return null;
+
+    if (API_CONFIG.USE_SUPABASE) {
+      const userId = await ensureAuthenticated();
+
+      const { data, error } = await supabase
+        .from('user_owners')
+        .insert({
+          user_id: userId,
+          name: trimmedName
+        })
+        .select()
+        .single();
+
+      if (error) {
+        // Handle unique constraint violation (owner already exists)
+        if (error.code === '23505') {
+          console.warn('Owner already exists:', trimmedName);
+          return null;
+        }
+        handleSupabaseError(error, 'add user owner');
+      }
+
+      return data as UserOwner;
+    }
+
+    // Fallback to localStorage
+    const stored = localStorage.getItem('modulr_custom_owners');
+    const existing: string[] = stored ? JSON.parse(stored) : [];
+
+    if (!existing.includes(trimmedName)) {
+      existing.push(trimmedName);
+      localStorage.setItem('modulr_custom_owners', JSON.stringify(existing));
+    }
+
+    return {
+      id: `custom-owner-${existing.length}`,
+      user_id: 'local',
+      name: trimmedName,
+      created_at: new Date().toISOString()
+    };
+  },
+
+  /**
+   * Delete a user's custom owner
+   */
+  async deleteUserOwner(id: string): Promise<boolean> {
+    if (API_CONFIG.USE_SUPABASE) {
+      const userId = await ensureAuthenticated();
+
+      const { error } = await supabase
+        .from('user_owners')
+        .delete()
+        .eq('id', id)
+        .eq('user_id', userId);
+
+      if (error) {
+        console.error('Delete user owner error:', error);
+        return false;
+      }
+
+      return true;
+    }
+
+    // localStorage deletion not implemented
+    return false;
+  },
+
+  /**
+   * Get all owners (default + custom)
+   */
+  async getAllOwnersFromDB(): Promise<OwnerOption[]> {
+    const [defaultOwners, userOwners] = await Promise.all([
+      this.getDefaultOwners(),
+      this.getUserOwners()
+    ]);
+
+    const options: OwnerOption[] = [];
+
+    // Add default owners
+    defaultOwners.forEach(owner => {
+      options.push({
+        name: owner.name,
+        isCustom: false
+      });
+    });
+
+    // Add user custom owners (excluding duplicates)
+    const defaultNames = new Set(defaultOwners.map(o => o.name.toLowerCase()));
+    userOwners.forEach(owner => {
+      if (!defaultNames.has(owner.name.toLowerCase())) {
+        options.push({
+          name: owner.name,
+          isCustom: true,
+          id: owner.id
+        });
+      }
+    });
+
+    return options;
+  },
+
+  // ============================================
+  // LEGACY METHODS (for backward compatibility)
+  // ============================================
+
+  /**
+   * Get custom categories for a transaction type (legacy localStorage)
+   * @deprecated Use getAllCategoriesFromDB instead
    */
   getCustomCategories(type: 'input' | 'output'): string[] {
     const key = `modulr_custom_categories_${type}`;
@@ -770,16 +1124,15 @@ export const FinanceService = {
   },
 
   /**
-   * Add a custom category for a transaction type
+   * Add a custom category for a transaction type (legacy localStorage)
+   * @deprecated Use addUserCategory instead
    */
   addCustomCategory(type: 'input' | 'output', category: string): void {
     const key = `modulr_custom_categories_${type}`;
     const existing = this.getCustomCategories(type);
-    
-    // Normalize the category name (lowercase, trimmed)
-    const normalized = category.trim().toLowerCase();
-    
-    // Only add if it doesn't already exist
+
+    const normalized = category.trim();
+
     if (normalized && !existing.includes(normalized)) {
       existing.push(normalized);
       localStorage.setItem(key, JSON.stringify(existing));
@@ -787,17 +1140,16 @@ export const FinanceService = {
   },
 
   /**
-   * Get all categories (default + custom) for a transaction type
+   * Get all categories (default + custom) for a transaction type (legacy)
+   * @deprecated Use getAllCategoriesFromDB instead
    */
   getAllCategories(type: 'input' | 'output'): string[] {
-    // Import dynamically to avoid circular dependency issues
-    const defaultCategories = type === 'output' 
-      ? ['assurances', 'nourriture', 'deplacement', 'loyer', 'loisirs', 'santé', 'shopping', 'autres']
-      : ['salaire', 'remboursement', 'cadeau', 'autres'];
-    
+    const defaultCategories: string[] = type === 'output'
+      ? [...EXPENSE_CATEGORIES]
+      : [...INCOME_CATEGORIES];
+
     const custom = this.getCustomCategories(type);
-    
-    // Return default categories + custom ones (excluding duplicates)
+
     return [...defaultCategories, ...custom.filter(c => !defaultCategories.includes(c))];
   },
 };
