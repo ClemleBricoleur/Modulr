@@ -1,7 +1,11 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Plus, TrendingUp, TrendingDown, Check } from 'lucide-react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { Plus, TrendingUp, TrendingDown, Check, FileText, Loader2, AlertCircle } from 'lucide-react';
 import { FinanceService } from '../services/financeService';
 import { formatCurrency } from '../../../core/config/locale.config';
+import { isAIConfigured } from '../../../core/config/ai.config';
+import { pdfToImages } from '../../../core/utils/pdfUtils';
+import { extractTransactionsFromImages, type ExtractedTransaction } from '../../../core/services/aiService';
+import { StatementPreviewModal } from '../components/StatementPreviewModal';
 import type {
   TransactionType,
   CategoryOption,
@@ -28,6 +32,13 @@ export const AddTransactionPage = ({ onSuccess }: AddTransactionPageProps) => {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isLoadingCategories, setIsLoadingCategories] = useState(false);
   const [isLoadingOwners, setIsLoadingOwners] = useState(false);
+
+  // Statement scanning state
+  const pdfInputRef = useRef<HTMLInputElement>(null);
+  const [isScanning, setIsScanning] = useState(false);
+  const [scanError, setScanError] = useState<string | null>(null);
+  const [extractedTransactions, setExtractedTransactions] = useState<ExtractedTransaction[]>([]);
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
 
   // Load owners on mount
   const loadOwners = useCallback(async () => {
@@ -142,8 +153,85 @@ export const AddTransactionPage = ({ onSuccess }: AddTransactionPageProps) => {
     // Categories will be updated by the useEffect that watches type
   };
 
+  // Statement scanning handlers
+  const handleScanClick = () => {
+    if (!isAIConfigured()) {
+      setScanError('Please configure your AI API key in Settings before scanning statements.');
+      return;
+    }
+    setScanError(null);
+    pdfInputRef.current?.click();
+  };
+
+  const handlePdfSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Reset the input so the same file can be selected again
+    e.target.value = '';
+
+    if (file.type !== 'application/pdf') {
+      setScanError('Please select a PDF file.');
+      return;
+    }
+
+    setIsScanning(true);
+    setScanError(null);
+
+    try {
+      // Convert PDF to images
+      const images = await pdfToImages(file);
+
+      if (images.length === 0) {
+        setScanError('Could not read PDF file. Please try a different file.');
+        return;
+      }
+
+      // Extract transactions using AI
+      const result = await extractTransactionsFromImages(images);
+
+      if (!result.success) {
+        setScanError(result.error || 'Failed to extract transactions from statement.');
+        return;
+      }
+
+      if (result.transactions.length === 0) {
+        setScanError('No transactions found in the statement. Please try a different file.');
+        return;
+      }
+
+      // Show preview modal with extracted transactions
+      setExtractedTransactions(result.transactions);
+      setShowPreviewModal(true);
+    } catch (error) {
+      console.error('Statement scanning error:', error);
+      setScanError('An error occurred while scanning the statement. Please try again.');
+    } finally {
+      setIsScanning(false);
+    }
+  };
+
+  const handlePreviewClose = () => {
+    setShowPreviewModal(false);
+    setExtractedTransactions([]);
+  };
+
+  const handleImportSuccess = () => {
+    setSuccessMessage('Transactions imported successfully!');
+    onSuccess();
+  };
+
   return (
     <div className="p-4 max-w-md mx-auto">
+      {/* Hidden PDF Input */}
+      <input
+        ref={pdfInputRef}
+        type="file"
+        accept="application/pdf"
+        onChange={handlePdfSelect}
+        className="hidden"
+      />
+
       {/* Success Message */}
       {successMessage && (
         <div className="mb-4 p-4 bg-emerald-100 dark:bg-emerald-900/30 border border-emerald-300 dark:border-emerald-700 rounded-2xl flex items-center gap-3 animate-fade-in">
@@ -155,6 +243,36 @@ export const AddTransactionPage = ({ onSuccess }: AddTransactionPageProps) => {
           </span>
         </div>
       )}
+
+      {/* Scan Error Message */}
+      {scanError && (
+        <div className="mb-4 p-4 bg-red-100 dark:bg-red-900/30 border border-red-300 dark:border-red-700 rounded-2xl flex items-center gap-3">
+          <AlertCircle size={20} className="text-red-600 dark:text-red-400 flex-shrink-0" />
+          <span className="text-red-700 dark:text-red-300 text-sm">
+            {scanError}
+          </span>
+        </div>
+      )}
+
+      {/* Scan Statement Button */}
+      <button
+        type="button"
+        onClick={handleScanClick}
+        disabled={isScanning}
+        className="w-full mb-6 py-4 px-6 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-semibold rounded-2xl shadow-lg shadow-indigo-500/30 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
+      >
+        {isScanning ? (
+          <>
+            <Loader2 size={20} className="animate-spin" />
+            Scanning statement...
+          </>
+        ) : (
+          <>
+            <FileText size={20} />
+            Add transactions by scanning statement
+          </>
+        )}
+      </button>
 
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Type Toggle */}
@@ -340,6 +458,14 @@ export const AddTransactionPage = ({ onSuccess }: AddTransactionPageProps) => {
           )}
         </button>
       </form>
+
+      {/* Statement Preview Modal */}
+      <StatementPreviewModal
+        isOpen={showPreviewModal}
+        onClose={handlePreviewClose}
+        transactions={extractedTransactions}
+        onImport={handleImportSuccess}
+      />
     </div>
   );
 };
