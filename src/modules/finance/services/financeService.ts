@@ -67,6 +67,33 @@ function getFirstDayOfNextMonth(monthKey: string): string {
 }
 
 /**
+ * Pagination helper to fetch all rows beyond Supabase's 1000 row default limit
+ * Fetches data in batches and combines results
+ */
+async function fetchAllPaginated<T>(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  queryBuilder: any,
+  pageSize: number = 1000
+): Promise<T[]> {
+  const allData: T[] = [];
+  let offset = 0;
+  let hasMore = true;
+
+  while (hasMore) {
+    const { data, error } = await queryBuilder.range(offset, offset + pageSize - 1);
+    
+    if (error) throw error;
+    
+    const fetchedData = (data || []) as T[];
+    allData.push(...fetchedData);
+    hasMore = fetchedData.length === pageSize;
+    offset += pageSize;
+  }
+  
+  return allData;
+}
+
+/**
  * Group transactions by month
  */
 function groupTransactionsByMonth(transactions: Transaction[]): MonthData[] {
@@ -118,15 +145,16 @@ export const FinanceService = {
     if (API_CONFIG.USE_SUPABASE) {
       const userId = await ensureAuthenticated();
 
-      const { data, error } = await supabase
+      const query = supabase
         .from('transactions')
         .select('*')
         .eq('user_id', userId)
         .order('date', { ascending: false });
 
-      if (error) handleSupabaseError(error, 'fetch transactions');
+      // Use pagination to fetch ALL transactions (bypasses 1000 row default limit)
+      const data = await fetchAllPaginated<TransactionRow>(query);
 
-      const transactions = (data || []).map(rowToTransaction);
+      const transactions = data.map(rowToTransaction);
       return groupTransactionsByMonth(transactions);
     }
 
@@ -143,7 +171,7 @@ export const FinanceService = {
       const startDate = `${monthKey}-01`;
       const endDate = getFirstDayOfNextMonth(monthKey);
 
-      const { data, error } = await supabase
+      const query = supabase
         .from('transactions')
         .select('*')
         .eq('user_id', userId)
@@ -151,9 +179,10 @@ export const FinanceService = {
         .lt('date', endDate)
         .order('date', { ascending: false });
 
-      if (error) handleSupabaseError(error, 'fetch month data');
+      // Use pagination to fetch ALL transactions (bypasses 1000 row default limit)
+      const data = await fetchAllPaginated<TransactionRow>(query);
 
-      const transactions = (data || []).map(rowToTransaction);
+      const transactions = data.map(rowToTransaction);
       const months = groupTransactionsByMonth(transactions);
       return months[0] || null;
     }
@@ -169,15 +198,16 @@ export const FinanceService = {
     if (API_CONFIG.USE_SUPABASE) {
       const userId = await ensureAuthenticated();
 
-      const { data, error } = await supabase
+      const query = supabase
         .from('transactions')
         .select('*')
         .eq('user_id', userId)
         .order('date', { ascending: false });
 
-      if (error) handleSupabaseError(error, 'fetch all transactions');
+      // Use pagination to fetch ALL transactions (bypasses 1000 row default limit)
+      const data = await fetchAllPaginated<TransactionRow>(query);
 
-      return (data || []).map(rowToTransaction);
+      return data.map(rowToTransaction);
     }
 
     const months = await this.getAllMonths();
@@ -201,7 +231,7 @@ export const FinanceService = {
       const startDate = `${year}-01-01`;
       const endDate = `${year}-12-31`;
 
-      const { data, error } = await supabase
+      const query = supabase
         .from('transactions')
         .select('*')
         .eq('user_id', userId)
@@ -209,9 +239,10 @@ export const FinanceService = {
         .lte('date', endDate)
         .order('date', { ascending: false });
 
-      if (error) handleSupabaseError(error, 'fetch transactions by year');
+      // Use pagination to fetch ALL transactions (bypasses 1000 row default limit)
+      const data = await fetchAllPaginated<TransactionRow>(query);
 
-      return (data || []).map(rowToTransaction);
+      return data.map(rowToTransaction);
     }
 
     const all = await this.getAllTransactions();
@@ -227,7 +258,7 @@ export const FinanceService = {
       const startDate = `${monthKey}-01`;
       const endDate = getFirstDayOfNextMonth(monthKey);
 
-      const { data, error } = await supabase
+      const query = supabase
         .from('transactions')
         .select('*')
         .eq('user_id', userId)
@@ -235,9 +266,10 @@ export const FinanceService = {
         .lt('date', endDate)
         .order('date', { ascending: false });
 
-      if (error) handleSupabaseError(error, 'fetch transactions by month');
+      // Use pagination to fetch ALL transactions (bypasses 1000 row default limit)
+      const data = await fetchAllPaginated<TransactionRow>(query);
 
-      return (data || []).map(rowToTransaction);
+      return data.map(rowToTransaction);
     }
 
     const month = await this.getMonth(monthKey);
@@ -269,14 +301,13 @@ export const FinanceService = {
         query = query.gte('date', startDate).lte('date', endDate);
       }
 
-      const { data, error } = await query;
-
-      if (error) handleSupabaseError(error, 'calculate totals');
+      // Use pagination to fetch ALL transactions (bypasses 1000 row default limit)
+      const data = await fetchAllPaginated<{ amount: number; type: string }>(query);
 
       let totalInput = 0;
       let totalOutput = 0;
 
-      (data || []).forEach((row: { amount: number; type: string }) => {
+      data.forEach((row) => {
         if (row.type === 'input') {
           totalInput += Number(row.amount);
         } else {

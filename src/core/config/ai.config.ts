@@ -64,7 +64,7 @@ export function getAIModel(provider: AIProvider): string {
     case 'openai':
       return 'gpt-4o';
     case 'gemini':
-      return 'gemini-2.5-flash';
+      return 'gemini-3-flash-preview';
     case 'claude':
       return 'claude-3-5-sonnet-20241022';
     default:

@@ -28,29 +28,40 @@ export interface ExtractionResult {
 /**
  * The prompt used for transaction extraction
  */
-const EXTRACTION_PROMPT = `Analyze this bank statement image and extract all transactions.
+const EXTRACTION_PROMPT = `### RÔLE
+Tu es un agent spécialisé en extraction de données financières (OCR) avec une précision de 100%. Ton objectif est de transformer une image ou un texte de relevé bancaire Desjardins en un fichier JSON structuré.
 
-Return ONLY a valid JSON object with this exact structure:
+### TÂCHE
+Analyse l'image du relevé de compte et extrais TOUTES les transactions sans exception (achats, frais, et paiements).
+
+### RÈGLES DE FORMATAGE
+Retourne EXCLUSIVEMENT un objet JSON respectant cette structure exacte :
 {
   "transactions": [
     {
       "date": "YYYY-MM-DD",
-      "description": "Transaction description",
+      "description": "Description simplifiée",
       "amount": 123.45,
-      "type": "expense" or "income"
+      "type": "expense" | "income"
     }
   ]
 }
 
-Rules:
-- Extract ALL visible transactions from the statement on the table Transactions effectuées avec la carte de :
-- Use ISO date format (YYYY-MM-DD)
-- Amount should always be a positive number
-- Type should be "expense" for debits/withdrawals/payments, "income" for credits/deposits
-- Description should be the merchant name or transaction description
-- If you cannot determine the year, use the current year
-- Do not include opening/closing balances, only actual transactions
-- Return ONLY the JSON object, no additional text`;
+### RÈGLES D'EXTRACTION STRICTES
+1. DATE : Utilise le format ISO 8601 (YYYY-MM-DD). L'année doit être déduite de la date du relevé (ex: 2025).
+2. TYPE : 
+   - "expense" : Achats, frais annuels, intérêts, débits.
+   - "income" : Crédits, remboursements, "PAIEMENT CAISSE" ou montants suivis de "CR".
+3. MONTANT : Doit être un nombre flottant positif (ex: 12.99). Ne jamais inclure de symbole monétaire ou de signe négatif.
+4. DESCRIPTION : Nettoie les espaces inutiles. Garde le nom du marchand et la localisation.
+5. EXCLUSIONS : Ne pas inclure les soldes précédents, les totaux de section ou les sommaires de récompenses.
+6. ZÉRO TEXTE : Ne fournis aucune introduction, explication ou conclusion. Uniquement le bloc JSON.
+
+### CONTEXTE DU DOCUMENT
+Le document contient plusieurs tables : "Transactions effectuées avec la carte de" et "Opérations au compte". Tu dois scanner l'intégralité des pages pour n'oublier aucune ligne.
+
+### IMPORTANT
+N'oublie aucune transaction, même les petites.`;
 
 /**
  * Extract transactions from images using the configured AI provider

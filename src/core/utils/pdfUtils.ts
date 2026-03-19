@@ -38,6 +38,7 @@ export async function pdfToImages(file: File, scale: number = 2.0): Promise<stri
     await page.render({
       canvasContext: context,
       viewport: viewport,
+      canvas: canvas,
     }).promise;
 
     // Convert canvas to base64 image
